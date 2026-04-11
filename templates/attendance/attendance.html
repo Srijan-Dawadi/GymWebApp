@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% block title %}Attendance — GymApp{% endblock %}
+{% block page_title %}Attendance{% endblock %}
+
+{% block header_actions %}
+{% if user.profile.role == 'admin' %}
+<a href="/attendance/export/" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+  ⬇ Export CSV
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+
+  <!-- Face Recognition Panel -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">Face Recognition Check-in</h3>
+
+    <!-- Status bar -->
+    <div id="fr-status" class="mb-3 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+      ⏳ Loading face recognition models...
+    </div>
+
+    <!-- Video feed -->
+    <div class="relative bg-gray-900 rounded-lg overflow-hidden aspect-video mb-4">
+      <video id="fr-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+      <canvas id="fr-overlay" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+    </div>
+
+    <!-- Result display -->
+    <div id="fr-result" class="hidden mb-3 text-sm px-4 py-3 rounded-lg font-medium"></div>
+
+    <!-- Cooldown indicator -->
+    <div id="fr-cooldown" class="hidden text-xs text-gray-400 text-center mb-2">
+      ⏱ Next scan in <span id="cooldown-counter">1</span>s
+    </div>
+  </div>
+
+  <!-- Manual Check-in Panel -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">Manual Check-in</h3>
+    <p class="text-sm text-gray-500 mb-4">Use this if face recognition is unavailable or the member is not recognized.</p>
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Select Member</label>
+        <select name="member_id" required
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          <option value="">— Choose a member —</option>
+          {% for member in members %}
+          <option value="{{ member.pk }}">{{ member.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit"
+        class="w-full py-2.5 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-900 transition-colors">
+        Check In Manually
+      </button>
+    </form>
+
+    <!-- Today's check-ins summary -->
+    <div class="mt-6">
+      <h4 class="text-sm font-semibold text-gray-700 mb-3">Today's Check-ins ({{ today_records|length }})</h4>
+      <div class="space-y-2 max-h-48 overflow-y-auto">
+        {% for record in today_records %}
+        <div class="flex items-center justify-between text-sm py-1.5 border-b border-gray-50">
+          <span class="font-medium text-gray-800">{{ record.member.full_name }}</span>
+          <div class="flex items-center gap-2 text-gray-500">
+            <span>{{ record.check_in_time|time:"H:i" }}</span>
+            <span class="px-1.5 py-0.5 rounded text-xs {% if record.method == 'face' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+              {{ record.method|capfirst }}
+            </span>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-400 text-sm text-center py-4">No check-ins yet today.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full attendance history -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-100">
+    <h3 class="font-semibold text-gray-800">Attendance History</h3>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-100">
+      <tr>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Member</th>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Date</th>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Time</th>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Method</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for record in page_obj %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3 font-medium text-gray-900">
+          <a href="/members/{{ record.member.pk }}/" class="hover:text-indigo-600">{{ record.member.full_name }}</a>
+        </td>
+        <td class="px-5 py-3 text-gray-700">{{ record.date }}</td>
+        <td class="px-5 py-3 text-gray-700">{{ record.check_in_time|time:"H:i" }}</td>
+        <td class="px-5 py-3">
+          <span class="px-2 py-0.5 rounded-full text-xs {% if record.method == 'face' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ record.method|capfirst }}
+          </span>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="px-5 py-10 text-center text-gray-400">No attendance records.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if page_obj.has_other_pages %}
+  <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-600">
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">← Prev</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Next →</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- face-api.js -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+const MODEL_URL = '/static/face-api/models';
+const CHECKIN_URL = '/attendance/checkin/';
+const DESCRIPTORS_URL = '/members/descriptors/';
+const SCAN_INTERVAL_MS = 1000;
+const MATCH_THRESHOLD = 0.5;
+
+const video = document.getElementById('fr-video');
+const overlay = document.getElementById('fr-overlay');
+const statusEl = document.getElementById('fr-status');
+const resultEl = document.getElementById('fr-result');
+
+let faceMatcher = null;
+let scanning = false;
+let lastCheckedIn = {};  // member_id → timestamp, to avoid rapid re-triggers
+
+function setStatus(msg, type = 'info') {
+  const classes = {
+    info: 'text-yellow-700 bg-yellow-50 border-yellow-200',
+    success: 'text-green-700 bg-green-50 border-green-200',
+    error: 'text-red-700 bg-red-50 border-red-200',
+  };
+  statusEl.className = `mb-3 text-sm border rounded-lg px-3 py-2 ${classes[type] || classes.info}`;
+  statusEl.textContent = msg;
+}
+
+function showResult(msg, success) {
+  resultEl.className = `mb-3 text-sm px-4 py-3 rounded-lg font-medium ${success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+  resultEl.textContent = msg;
+  resultEl.classList.remove('hidden');
+  setTimeout(() => resultEl.classList.add('hidden'), 4000);
+}
+
+async function loadModels() {
+  try {
+    setStatus('⏳ Loading models (1/3)...');
+    await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+    setStatus('⏳ Loading models (2/3)...');
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    setStatus('⏳ Loading models (3/3)...');
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    setStatus('✅ Models loaded. Loading member descriptors...', 'success');
+    await loadDescriptors();
+  } catch (err) {
+    setStatus('❌ Failed to load models. Face recognition unavailable.', 'error');
+    console.error('Model load error:', err);
+  }
+}
+
+async function loadDescriptors() {
+  try {
+    const res = await fetch(DESCRIPTORS_URL);
+    const members = await res.json();
+
+    if (members.length === 0) {
+      setStatus('⚠️ No members with face data. Register members first.', 'info');
+      return;
+    }
+
+    const labeledDescriptors = members.map(m => {
+      const descriptors = [new Float32Array(m.descriptor)];
+      return new faceapi.LabeledFaceDescriptors(String(m.id), descriptors);
+    });
+
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, MATCH_THRESHOLD);
+    setStatus(`✅ Ready — ${members.length} member(s) loaded. Starting camera...`, 'success');
+    await startCamera();
+  } catch (err) {
+    setStatus('❌ Failed to load member descriptors.', 'error');
+    console.error('Descriptor load error:', err);
+  }
+}
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    video.srcObject = stream;
+    video.addEventListener('loadedmetadata', () => {
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+      startScanning();
+    });
+  } catch (err) {
+    setStatus('❌ Camera access denied. Please allow camera permissions.', 'error');
+  }
+}
+
+function startScanning() {
+  setStatus('🎥 Scanning for faces...', 'success');
+  setInterval(scanFace, SCAN_INTERVAL_MS);
+}
+
+async function scanFace() {
+  if (scanning || !faceMatcher) return;
+  scanning = true;
+
+  try {
+    const detections = await faceapi
+      .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+      .withFaceLandmarks()
+      .withFaceDescriptors();
+
+    const ctx = overlay.getContext('2d');
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+    if (detections.length === 0) {
+      scanning = false;
+      return;
+    }
+
+    // Scale detections to overlay size
+    const dims = faceapi.matchDimensions(overlay, video, true);
+    const resized = faceapi.resizeResults(detections, dims);
+
+    for (const detection of resized) {
+      const match = faceMatcher.findBestMatch(detection.descriptor);
+
+      if (match.label !== 'unknown') {
+        const memberId = parseInt(match.label);
+        const now = Date.now();
+
+        // Prevent re-triggering within 10 seconds for same member
+        if (!lastCheckedIn[memberId] || now - lastCheckedIn[memberId] > 10000) {
+          lastCheckedIn[memberId] = now;
+          await doCheckin(memberId);
+        }
+
+        // Draw green box
+        const box = detection.detection.box;
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+      } else {
+        // Draw red box for unknown
+        const box = detection.detection.box;
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        showResult('❌ Face not recognized. Use manual check-in below.', false);
+      }
+    }
+  } catch (err) {
+    console.error('Scan error:', err);
+  }
+
+  scanning = false;
+}
+
+async function doCheckin(memberId) {
+  try {
+    const res = await fetch(CHECKIN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({ member_id: memberId }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showResult(`✅ Welcome, ${data.member_name}!`, true);
+      // Refresh today's check-in list after a short delay
+      setTimeout(() => location.reload(), 2000);
+    } else if (res.status === 409) {
+      showResult(`ℹ️ ${data.member_name} already checked in today.`, false);
+    } else {
+      showResult('❌ Check-in failed. Please try manually.', false);
+    }
+  } catch (err) {
+    console.error('Check-in error:', err);
+    showResult('❌ Network error. Please try manually.', false);
+  }
+}
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
+loadModels();
+</script>
+{% endblock %}

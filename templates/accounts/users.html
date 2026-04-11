@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Users — GymApp{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block header_actions %}
+<a href="/accounts/users/add/" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+  + Add User
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-100">
+      <tr>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Username</th>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Email</th>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Role</th>
+        <th class="px-5 py-3 text-left font-medium text-gray-600">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for u in users %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3 font-medium text-gray-900">
+          {{ u.username }}
+          {% if u == request.user %}<span class="ml-1 text-xs text-indigo-500">(you)</span>{% endif %}
+        </td>
+        <td class="px-5 py-3 text-gray-600">{{ u.email|default:"—" }}</td>
+        <td class="px-5 py-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium
+            {% if u.profile.role == 'admin' %}bg-indigo-100 text-indigo-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ u.profile.role|capfirst }}
+          </span>
+        </td>
+        <td class="px-5 py-3 flex items-center gap-2">
+          <a href="/accounts/users/{{ u.pk }}/edit/" class="text-indigo-600 hover:underline text-xs">Edit</a>
+          {% if u != request.user %}
+          <form method="post" action="/accounts/users/{{ u.pk }}/delete/" onsubmit="return confirm('Delete {{ u.username }}?')">
+            {% csrf_token %}
+            <button type="submit" class="text-red-500 hover:underline text-xs">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="px-5 py-10 text-center text-gray-400">No users found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

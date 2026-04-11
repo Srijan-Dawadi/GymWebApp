@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — GymApp{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- Face capture panel -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">Face Registration</h3>
+
+    <!-- Model loading status -->
+    <div id="model-status" class="mb-3 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+      ⏳ Loading face recognition models...
+    </div>
+
+    <!-- Video feed -->
+    <div class="relative bg-gray-900 rounded-lg overflow-hidden aspect-video mb-4">
+      <video id="video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+      <canvas id="overlay" class="absolute inset-0 w-full h-full"></canvas>
+      <div id="camera-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+        📷 Camera will start after models load
+      </div>
+    </div>
+
+    <!-- Capture result -->
+    <div id="capture-result" class="hidden mb-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+      ✅ Face captured successfully!
+    </div>
+    <div id="capture-error" class="hidden mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+      ❌ No face detected. Please look at the camera and try again.
+    </div>
+
+    <button id="capture-btn" type="button" disabled
+      class="w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+      📸 Capture Face
+    </button>
+
+    <!-- Captured preview -->
+    <div id="captured-preview" class="hidden mt-4 text-center">
+      <canvas id="snapshot" class="rounded-lg mx-auto border border-gray-200" width="200" height="150"></canvas>
+      <p class="text-xs text-gray-500 mt-1">Captured snapshot</p>
+    </div>
+  </div>
+
+  <!-- Member form -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">Member Details</h3>
+
+    <form method="post" enctype="multipart/form-data" id="member-form" class="space-y-4">
+      {% csrf_token %}
+
+      <!-- Hidden face descriptor -->
+      <input type="hidden" name="face_descriptor" id="face_descriptor_input" value="{{ form.face_descriptor.value|default:'' }}" />
+
+      {% if form.non_field_errors %}
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+        {{ form.non_field_errors }}
+      </div>
+      {% endif %}
+
+      {% for field in form.visible_fields %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
+        </label>
+        {% if field.field.widget.input_type == 'select' %}
+        <select name="{{ field.html_name }}"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          {% for val, label in field.field.choices %}
+          <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% elif field.field.widget.input_type == 'file' %}
+        <input type="file" name="{{ field.html_name }}" accept="image/*"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+        {% else %}
+        <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
+          value="{{ field.value|default:'' }}"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none {% if field.errors %}border-red-400{% endif %}" />
+        {% endif %}
+        {% if field.errors %}
+        <p class="text-red-500 text-xs mt-1">{{ field.errors|join:", " }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <!-- Face descriptor validation error -->
+      {% if form.face_descriptor.errors %}
+      <div class="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+        {{ form.face_descriptor.errors|join:", " }}
+      </div>
+      {% endif %}
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" id="submit-btn"
+          class="flex-1 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+          Save Member
+        </button>
+        <a href="/members/" class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- face-api.js -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+const MODEL_URL = '/static/face-api/models';
+const video = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const captureBtn = document.getElementById('capture-btn');
+const descriptorInput = document.getElementById('face_descriptor_input');
+const modelStatus = document.getElementById('model-status');
+const captureResult = document.getElementById('capture-result');
+const captureError = document.getElementById('capture-error');
+const capturedPreview = document.getElementById('captured-preview');
+const cameraPlaceholder = document.getElementById('camera-placeholder');
+
+let modelsLoaded = false;
+let currentDescriptor = null;
+
+// Check if we already have a descriptor (edit mode)
+if (descriptorInput.value && descriptorInput.value.length > 10) {
+  captureResult.classList.remove('hidden');
+  captureResult.textContent = '✅ Face already registered. Capture again to update.';
+}
+
+async function loadModels() {
+  try {
+    await Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+    ]);
+    modelsLoaded = true;
+    modelStatus.textContent = '✅ Models loaded. Starting camera...';
+    modelStatus.className = 'mb-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2';
+    await startCamera();
+  } catch (err) {
+    modelStatus.textContent = '❌ Failed to load face recognition models. Face capture unavailable.';
+    modelStatus.className = 'mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2';
+    console.error('Model load error:', err);
+  }
+}
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    video.srcObject = stream;
+    cameraPlaceholder.style.display = 'none';
+    captureBtn.disabled = false;
+    modelStatus.textContent = '✅ Camera ready. Position your face and click Capture.';
+  } catch (err) {
+    modelStatus.textContent = '❌ Camera access denied. Please allow camera permissions and reload.';
+    modelStatus.className = 'mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2';
+  }
+}
+
+captureBtn.addEventListener('click', async () => {
+  if (!modelsLoaded) return;
+  captureBtn.disabled = true;
+  captureBtn.textContent = '⏳ Detecting face...';
+  captureError.classList.add('hidden');
+  captureResult.classList.add('hidden');
+
+  try {
+    const detection = await faceapi
+      .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!detection) {
+      captureError.classList.remove('hidden');
+    } else {
+      currentDescriptor = Array.from(detection.descriptor);
+      descriptorInput.value = JSON.stringify(currentDescriptor);
+
+      // Draw snapshot
+      const snapshotCanvas = document.getElementById('snapshot');
+      const ctx = snapshotCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
+      capturedPreview.classList.remove('hidden');
+      captureResult.classList.remove('hidden');
+      captureResult.textContent = '✅ Face captured successfully!';
+    }
+  } catch (err) {
+    captureError.classList.remove('hidden');
+    console.error('Capture error:', err);
+  }
+
+  captureBtn.disabled = false;
+  captureBtn.textContent = '📸 Capture Face';
+});
+
+// Validate face descriptor before form submit
+document.getElementById('member-form').addEventListener('submit', (e) => {
+  const val = descriptorInput.value;
+  if (!val || val.length < 10) {
+    e.preventDefault();
+    captureError.classList.remove('hidden');
+    captureError.textContent = '❌ Please capture your face before submitting.';
+    captureError.scrollIntoView({ behavior: 'smooth' });
+  }
+});
+
+loadModels();
+</script>
+{% endblock %}
