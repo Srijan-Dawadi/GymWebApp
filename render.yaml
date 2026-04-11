@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: gymapp
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn gymapp.wsgi --log-file -"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "gymwebapp-demr.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://gymwebapp-demr.onrender.com"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gymapp-db
+          property: connectionString
+
+databases:
+  - name: gymapp-db
+    databaseName: gymapp
+    user: gymapp
