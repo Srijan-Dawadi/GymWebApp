@@ -94,8 +94,12 @@
   <!-- Attendance bar chart (2/3 width) -->
   <div class="glass-card rounded-2xl p-5 lg:col-span-2">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="font-semibold text-sm" style="color:var(--text)">Attendance — Last 7 Days</h3>
-      <span class="text-xs px-2 py-1 rounded-lg font-medium" style="color:#6366f1;background:rgba(99,102,241,0.1)">Daily</span>
+      <h3 class="font-semibold text-sm" style="color:var(--text)">Attendance Trend</h3>
+      <div class="flex gap-1 p-1 rounded-lg" style="background:var(--surface2);border:1px solid var(--border)">
+        <button onclick="loadChart(7)"  id="btn-7"  class="range-btn active-range px-3 py-1 rounded-md text-xs font-semibold transition-all">7D</button>
+        <button onclick="loadChart(30)" id="btn-30" class="range-btn px-3 py-1 rounded-md text-xs font-semibold transition-all">30D</button>
+        <button onclick="loadChart(90)" id="btn-90" class="range-btn px-3 py-1 rounded-md text-xs font-semibold transition-all">90D</button>
+      </div>
     </div>
     <div style="height:200px">
       <canvas id="attendanceChart"></canvas>
@@ -124,6 +128,24 @@
     </div>
   </div>
 
+</div>
+
+<!-- ── Row 2b: Revenue trend chart ── -->
+<div class="glass-card rounded-2xl p-5 mb-5">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="font-semibold text-sm" style="color:var(--text)">Revenue Trend</h3>
+      <p class="text-xs mt-0.5" style="color:var(--text3)">Updates with the same range as attendance chart</p>
+    </div>
+    {% if revenue_change_pct is not None %}
+    <span class="text-xs font-semibold px-2.5 py-1 rounded-lg {% if revenue_change_pct >= 0 %}bg-emerald-500/15 text-emerald-600{% else %}bg-red-500/15 text-red-600{% endif %}">
+      {% if revenue_change_pct >= 0 %}↑{% else %}↓{% endif %} {{ revenue_change_pct|floatformat:1 }}% vs last month
+    </span>
+    {% endif %}
+  </div>
+  <div style="height:160px">
+    <canvas id="revenueChart"></canvas>
+  </div>
 </div>
 
 <!-- ── Row 3: Expiring soon + Recent payments + Recent check-ins ── -->
@@ -224,7 +246,6 @@
 // ── Count-up animation ──────────────────────────────────────────
 document.querySelectorAll('.stat-number[data-target]').forEach(el => {
   const target = parseFloat(el.dataset.target) || 0;
-  const isRevenue = el.id === 'rev' || el.dataset.rev;
   const prefix = el.textContent.startsWith('Rs.') ? 'Rs. ' : '';
   if (target === 0) { if (prefix) el.textContent = 'Rs. 0'; return; }
   let start = 0;
@@ -239,14 +260,33 @@ document.querySelectorAll('.stat-number[data-target]').forEach(el => {
   requestAnimationFrame(step);
 });
 
-// ── Chart.js theme helper ───────────────────────────────────────
-const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
-const gridColor  = () => isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-const labelColor = () => isDark() ? '#64748b' : '#6b7280';
+// ── Chart.js theme helpers ──────────────────────────────────────
+const isDark    = () => document.documentElement.getAttribute('data-theme') === 'dark';
+const gridColor = () => isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+const lblColor  = () => isDark() ? '#64748b' : '#6b7280';
+const tooltipDefaults = () => ({
+  backgroundColor: isDark() ? '#1e1e2e' : '#fff',
+  titleColor: isDark() ? '#e2e8f0' : '#0f172a',
+  bodyColor:  isDark() ? '#94a3b8' : '#374151',
+  borderColor: isDark() ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+  borderWidth: 1, padding: 10,
+});
 
-// ── Attendance bar chart ────────────────────────────────────────
+// ── Range button styles ─────────────────────────────────────────
+const RANGE_ACTIVE = 'background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;';
+const RANGE_IDLE   = 'color:var(--text3);background:transparent;';
+function setActiveBtn(days) {
+  [7,30,90].forEach(d => {
+    const btn = document.getElementById(`btn-${d}`);
+    btn.style.cssText = d === days ? RANGE_ACTIVE : RANGE_IDLE;
+  });
+}
+// Init button styles
+setActiveBtn(7);
+
+// ── Attendance chart ────────────────────────────────────────────
 const attCtx = document.getElementById('attendanceChart').getContext('2d');
-const attChart = new Chart(attCtx, {
+let attChart = new Chart(attCtx, {
   type: 'bar',
   data: {
     labels: {{ chart_labels|safe }},
@@ -261,35 +301,59 @@ const attChart = new Chart(attCtx, {
     }]
   },
   options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: isDark() ? '#1e1e2e' : '#fff',
-        titleColor: isDark() ? '#e2e8f0' : '#0f172a',
-        bodyColor: isDark() ? '#94a3b8' : '#374151',
-        borderColor: isDark() ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
-        borderWidth: 1,
-        padding: 10,
-        callbacks: { label: ctx => ` ${ctx.parsed.y} check-in${ctx.parsed.y !== 1 ? 's' : ''}` }
-      }
-    },
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { ...tooltipDefaults(), callbacks: { label: c => ` ${c.parsed.y} check-in${c.parsed.y !== 1 ? 's' : ''}` } } },
     scales: {
-      x: {
-        grid: { color: gridColor(), drawBorder: false },
-        ticks: { color: labelColor(), font: { size: 11 } },
-      },
-      y: {
-        beginAtZero: true,
-        grid: { color: gridColor(), drawBorder: false },
-        ticks: { color: labelColor(), font: { size: 11 }, stepSize: 1, precision: 0 },
-      }
+      x: { grid: { color: gridColor() }, ticks: { color: lblColor(), font: { size: 10 }, maxRotation: 45 } },
+      y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: lblColor(), font: { size: 10 }, stepSize: 1, precision: 0 } }
     }
   }
 });
 
-// ── Membership donut chart ──────────────────────────────────────
+// ── Revenue chart ───────────────────────────────────────────────
+const revCtx = document.getElementById('revenueChart').getContext('2d');
+let revChart = new Chart(revCtx, {
+  type: 'line',
+  data: {
+    labels: {{ chart_labels|safe }},
+    datasets: [{
+      label: 'Revenue (Rs.)',
+      data: Array({{ chart_labels|safe }}.length).fill(0),
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16,185,129,0.08)',
+      borderWidth: 2,
+      pointRadius: 3,
+      pointBackgroundColor: '#10b981',
+      fill: true,
+      tension: 0.4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { ...tooltipDefaults(), callbacks: { label: c => ` Rs. ${c.parsed.y}` } } },
+    scales: {
+      x: { grid: { color: gridColor() }, ticks: { color: lblColor(), font: { size: 10 }, maxRotation: 45 } },
+      y: { beginAtZero: true, grid: { color: gridColor() }, ticks: { color: lblColor(), font: { size: 10 } } }
+    }
+  }
+});
+
+// ── Dynamic range loader ────────────────────────────────────────
+async function loadChart(days) {
+  setActiveBtn(days);
+  const res = await fetch(`/dashboard/chart-data/?range=${days}`);
+  const data = await res.json();
+  attChart.data.labels = data.attendance.labels;
+  attChart.data.datasets[0].data = data.attendance.data;
+  attChart.update();
+  revChart.data.labels = data.revenue.labels;
+  revChart.data.datasets[0].data = data.revenue.data;
+  revChart.update();
+}
+// Load revenue data for default 7-day range on page load
+loadChart(7);
+
+// ── Membership donut ────────────────────────────────────────────
 const donutCtx = document.getElementById('donutChart').getContext('2d');
 const donutChart = new Chart(donutCtx, {
   type: 'doughnut',
@@ -299,43 +363,28 @@ const donutChart = new Chart(donutCtx, {
       data: {{ donut_data|safe }},
       backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(239,68,68,0.8)', 'rgba(156,163,175,0.8)'],
       borderColor: isDark() ? '#13131a' : '#ffffff',
-      borderWidth: 3,
-      hoverOffset: 6,
+      borderWidth: 3, hoverOffset: 6,
     }]
   },
   options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: '72%',
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: isDark() ? '#1e1e2e' : '#fff',
-        titleColor: isDark() ? '#e2e8f0' : '#0f172a',
-        bodyColor: isDark() ? '#94a3b8' : '#374151',
-        borderColor: isDark() ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
-        borderWidth: 1,
-        padding: 10,
-      }
-    }
+    responsive: true, maintainAspectRatio: false, cutout: '72%',
+    plugins: { legend: { display: false }, tooltip: { ...tooltipDefaults() } }
   }
 });
 
-// Re-render charts when theme toggles
+// ── Re-render on theme toggle ───────────────────────────────────
 const _origApply = window.applyTheme;
 window.applyTheme = function(theme) {
   _origApply && _origApply(theme);
   setTimeout(() => {
-    [attChart, donutChart].forEach(c => {
-      if (c.options.scales) {
-        Object.values(c.options.scales).forEach(s => {
-          s.grid.color = gridColor();
-          s.ticks.color = labelColor();
-        });
-      }
-      c.data.datasets[0].borderColor = isDark() ? '#13131a' : '#ffffff';
+    [attChart, revChart].forEach(c => {
+      Object.values(c.options.scales).forEach(s => {
+        s.grid.color = gridColor(); s.ticks.color = lblColor();
+      });
       c.update();
     });
+    donutChart.data.datasets[0].borderColor = isDark() ? '#13131a' : '#ffffff';
+    donutChart.update();
   }, 50);
 };
 </script>
