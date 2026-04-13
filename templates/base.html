@@ -374,6 +374,21 @@
   {% block auth_content %}{% endblock %}
 {% endif %}
 
+<!-- ── Global Confirm Modal ── -->
+<div id="confirm-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
+  <div id="modal-backdrop" class="absolute inset-0" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)" onclick="closeModal()"></div>
+  <div id="modal-card" class="relative w-full max-w-sm rounded-2xl p-7 text-center"
+    style="background:var(--bg2);border:1px solid var(--border);box-shadow:0 24px 64px rgba(0,0,0,0.4);transform:scale(0.95);opacity:0;transition:transform 0.2s ease,opacity 0.2s ease">
+    <div id="modal-icon" class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl"></div>
+    <h3 id="modal-title" class="text-lg font-bold mb-2" style="color:var(--text)"></h3>
+    <p  id="modal-body"  class="text-sm leading-relaxed mb-6" style="color:var(--text2)"></p>
+    <div class="flex gap-3 justify-center">
+      <button onclick="closeModal()" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-semibold">Cancel</button>
+      <button id="modal-confirm-btn" onclick="confirmModal()" class="action-btn px-5 py-2.5 rounded-xl text-sm font-semibold text-white">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2">
   {% for message in messages %}
   <div class="toast flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl text-white text-sm max-w-sm border
@@ -417,6 +432,52 @@
   // Load saved theme
   const savedTheme = localStorage.getItem('gymapp-theme') || 'dark';
   applyTheme(savedTheme);
+
+  // ── Global Confirm Modal ──────────────────────────────────────
+  let _modalCallback = null;
+
+  function showModal({ title, body, icon, iconBg, confirmText, confirmStyle, onConfirm }) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').textContent  = body;
+    const iconEl = document.getElementById('modal-icon');
+    iconEl.textContent = icon || '⚠️';
+    iconEl.style.cssText = iconBg || 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)';
+    const btn = document.getElementById('modal-confirm-btn');
+    btn.textContent = confirmText || 'Confirm';
+    btn.style.cssText = confirmStyle || 'background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 15px rgba(239,68,68,0.3)';
+    _modalCallback = onConfirm;
+    const modal = document.getElementById('confirm-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    requestAnimationFrame(() => {
+      const card = document.getElementById('modal-card');
+      card.style.transform = 'scale(1)';
+      card.style.opacity   = '1';
+    });
+  }
+
+  function closeModal() {
+    const card  = document.getElementById('modal-card');
+    const modal = document.getElementById('confirm-modal');
+    card.style.transform = 'scale(0.95)';
+    card.style.opacity   = '0';
+    setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+    _modalCallback = null;
+  }
+
+  function confirmModal() {
+    const cb = _modalCallback;  // grab before closeModal nulls it
+    _modalCallback = null;
+    const card  = document.getElementById('modal-card');
+    const modal = document.getElementById('confirm-modal');
+    card.style.transform = 'scale(0.95)';
+    card.style.opacity   = '0';
+    setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+    if (cb) cb();  // execute after closing
+  }
+
+  // Close on Escape key
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
   // ── Custom Select — replaces all native <select> with themed dropdown ──
   document.addEventListener('DOMContentLoaded', () => {

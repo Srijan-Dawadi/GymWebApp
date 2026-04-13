@@ -42,7 +42,7 @@ echo.
 
 :: Install dependencies
 echo [2/5] Installing dependencies (this may take a few minutes)...
-myenv\Scripts\pip install -r requirements.txt --quiet
+myenv\Scripts\pip install -r requirements-local.txt --quiet
 if errorlevel 1 (
     echo [ERROR] Failed to install dependencies.
     pause

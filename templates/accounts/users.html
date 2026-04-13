@@ -51,12 +51,14 @@
               class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-amber-400 hover:text-white hover:bg-amber-500"
               style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)">Edit</a>
             {% if u != request.user %}
-            <form method="post" action="/accounts/users/{{ u.pk }}/delete/" onsubmit="return confirm('Delete {{ u.username }}?')">
+            <form method="post" action="/accounts/users/{{ u.pk }}/delete/" id="del-user-{{ u.pk }}">
               {% csrf_token %}
-              <button type="submit"
-                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-red-400 hover:text-white hover:bg-red-500"
-                style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">Delete</button>
             </form>
+            <button type="button"
+              data-form="del-user-{{ u.pk }}"
+              data-name="{{ u.username }}"
+              class="modal-delete-user inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-red-400 hover:text-white hover:bg-red-500"
+              style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">Delete</button>
             {% endif %}
           </div>
         </td>
@@ -67,4 +69,24 @@
     </tbody>
   </table>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.modal-delete-user').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var name   = this.getAttribute('data-name');
+      var formId = this.getAttribute('data-form');
+      showModal({
+        title: 'Delete ' + name + '?',
+        body: 'This user account will be permanently removed. This cannot be undone.',
+        icon: '🗑️',
+        iconBg: 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)',
+        confirmText: 'Yes, Delete',
+        confirmStyle: 'background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 15px rgba(239,68,68,0.3)',
+        onConfirm: function() { document.getElementById(formId).submit(); }
+      });
+    });
+  });
+});
+</script>
 {% endblock %}

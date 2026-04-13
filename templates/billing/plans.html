@@ -30,12 +30,14 @@
               <a href="/billing/plans/{{ plan.pk }}/edit/"
                 class="action-btn inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400 hover:text-white hover:bg-amber-500 whitespace-nowrap"
                 style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)">Edit</a>
-              <form method="post" action="/billing/plans/{{ plan.pk }}/delete/" class="inline" onsubmit="return confirm('Delete this plan?')">
+              <form method="post" action="/billing/plans/{{ plan.pk }}/delete/" class="inline" id="del-plan-{{ plan.pk }}">
                 {% csrf_token %}
-                <button type="submit"
-                  class="action-btn inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:text-white hover:bg-red-500 whitespace-nowrap"
-                  style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">Delete</button>
               </form>
+              <button type="button"
+                class="modal-delete-plan action-btn inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:text-white hover:bg-red-500 whitespace-nowrap"
+                data-form="del-plan-{{ plan.pk }}"
+                data-name="{{ plan.name }}"
+                style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">Delete</button>
             </div>
           </td>
         </tr>
@@ -71,4 +73,24 @@
     </form>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.modal-delete-plan').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var name   = this.getAttribute('data-name');
+      var formId = this.getAttribute('data-form');
+      showModal({
+        title: 'Delete "' + name + '"?',
+        body: 'This plan will be permanently deleted. Members currently on this plan cannot be deleted.',
+        icon: '🗑️',
+        iconBg: 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)',
+        confirmText: 'Yes, Delete',
+        confirmStyle: 'background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 15px rgba(239,68,68,0.3)',
+        onConfirm: function() { document.getElementById(formId).submit(); }
+      });
+    });
+  });
+});
+</script>
 {% endblock %}

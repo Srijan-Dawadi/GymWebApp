@@ -10,32 +10,86 @@
   Edit
 </a>
 {% if user.profile.role == 'admin' %}
-<!-- Suspend / Reactivate -->
-<form method="post" action="/members/{{ member.pk }}/toggle-suspend/" class="inline">
+
+<form method="post" action="/members/{{ member.pk }}/toggle-suspend/" class="inline" id="suspend-form">
   {% csrf_token %}
-  {% if member.status == 'suspended' %}
-  <button type="submit"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-emerald-400 hover:text-white hover:bg-emerald-500"
-    style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)">
-    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-    Reactivate
-  </button>
-  {% else %}
-  <button type="submit"
-    onclick="return confirm('Suspend {{ member.full_name }}? They will not be able to check in.')"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-orange-400 hover:text-white hover:bg-orange-500"
-    style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2)">
-    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-    Suspend
-  </button>
-  {% endif %}
 </form>
-<a href="/members/{{ member.pk }}/delete/"
+<form method="post" action="/members/{{ member.pk }}/delete/" id="delete-member-form" class="hidden">
+  {% csrf_token %}
+</form>
+
+{% if member.status == 'suspended' %}
+<button type="button" id="suspend-btn" data-action="reactivate" data-name="{{ member.full_name }}"
+  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-emerald-400 hover:text-white hover:bg-emerald-500"
+  style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)">
+  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  Reactivate
+</button>
+{% else %}
+<button type="button" id="suspend-btn" data-action="suspend" data-name="{{ member.full_name }}"
+  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-orange-400 hover:text-white hover:bg-orange-500"
+  style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2)">
+  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+  Suspend
+</button>
+{% endif %}
+
+<button type="button" id="delete-member-btn" data-name="{{ member.full_name }}"
   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-red-400 hover:text-white hover:bg-red-500"
   style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">
   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
   Delete
-</a>
+</button>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var suspendBtn = document.getElementById('suspend-btn');
+  var deleteBtn  = document.getElementById('delete-member-btn');
+
+  if (suspendBtn) {
+    suspendBtn.addEventListener('click', function() {
+      var name   = this.getAttribute('data-name');
+      var action = this.getAttribute('data-action');
+      if (action === 'suspend') {
+        showModal({
+          title: 'Suspend ' + name + '?',
+          body: 'They will not be able to check in until reactivated by an admin.',
+          icon: '🚫',
+          iconBg: 'background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2)',
+          confirmText: 'Yes, Suspend',
+          confirmStyle: 'background:linear-gradient(135deg,#f97316,#ea580c);box-shadow:0 4px 15px rgba(249,115,22,0.3)',
+          onConfirm: function() { document.getElementById('suspend-form').submit(); }
+        });
+      } else {
+        showModal({
+          title: 'Reactivate ' + name + '?',
+          body: 'Their membership status will be restored based on their expiry date.',
+          icon: '✅',
+          iconBg: 'background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)',
+          confirmText: 'Yes, Reactivate',
+          confirmStyle: 'background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 4px 15px rgba(16,185,129,0.3)',
+          onConfirm: function() { document.getElementById('suspend-form').submit(); }
+        });
+      }
+    });
+  }
+
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function() {
+      var name = this.getAttribute('data-name');
+      showModal({
+        title: 'Delete ' + name + '?',
+        body: 'This will permanently delete the member and all their attendance records. This cannot be undone.',
+        icon: '⚠️',
+        iconBg: 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)',
+        confirmText: 'Yes, Delete',
+        confirmStyle: 'background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 15px rgba(239,68,68,0.3)',
+        onConfirm: function() { document.getElementById('delete-member-form').submit(); }
+      });
+    });
+  }
+});
+</script>
 {% endif %}
 {% endblock %}
 
