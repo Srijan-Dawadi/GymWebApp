@@ -8,11 +8,10 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import DetailView
 
 from accounts.mixins import AdminRequiredMixin, StaffRequiredMixin
 from .forms import MemberForm
-from .models import Member, MembershipPlan
+from .models import Member
 
 
 @method_decorator(login_required, name='dispatch')
@@ -23,13 +22,10 @@ class MemberListView(View):
         qs = Member.objects.select_related('membership_plan').order_by('full_name')
         q = request.GET.get('q', '').strip()
         status_filter = request.GET.get('status', '').strip()
-
         if q:
-            qs = qs.filter(full_name__icontains=q) | qs.filter(email__icontains=q)
-            qs = qs.distinct()
+            qs = (qs.filter(full_name__icontains=q) | qs.filter(email__icontains=q)).distinct()
         if status_filter:
             qs = qs.filter(status=status_filter)
-
         paginator = Paginator(qs, 20)
         page = paginator.get_page(request.GET.get('page'))
         return render(request, self.template_name, {'page_obj': page, 'q': q, 'status_filter': status_filter})
@@ -50,6 +46,22 @@ class MemberDetailView(View):
         })
 
 
+def _extract_and_save_embedding(member):
+    """Read the member's saved photo and extract InsightFace embedding."""
+    from face_service import extract_embedding
+    try:
+        with open(member.photo.path, 'rb') as f:
+            image_bytes = f.read()
+        embedding = extract_embedding(image_bytes)
+        if embedding:
+            member.face_descriptor = embedding
+            Member.objects.filter(pk=member.pk).update(face_descriptor=embedding)
+            return True
+        return False
+    except Exception:
+        return False
+
+
 class MemberCreateView(StaffRequiredMixin, View):
     template_name = 'members/form.html'
 
@@ -60,10 +72,16 @@ class MemberCreateView(StaffRequiredMixin, View):
     def post(self, request):
         form = MemberForm(request.POST, request.FILES)
         if form.is_valid():
-            member = form.save(commit=False)
-            member.face_descriptor = form.cleaned_data['face_descriptor']
-            member.save()
-            messages.success(request, f"Member '{member.full_name}' registered successfully.")
+            member = form.save()
+            # Extract face embedding from uploaded photo
+            if member.photo:
+                ok = _extract_and_save_embedding(member)
+                if not ok:
+                    messages.warning(request, f"Member '{member.full_name}' saved but no face detected in the photo. Please re-upload a clear face photo.")
+                else:
+                    messages.success(request, f"Member '{member.full_name}' registered with face recognition.")
+            else:
+                messages.success(request, f"Member '{member.full_name}' registered (no photo).")
             return redirect('member_detail', pk=member.pk)
         return render(request, self.template_name, {'form': form, 'title': 'Add Member'})
 
@@ -73,22 +91,24 @@ class MemberEditView(StaffRequiredMixin, View):
 
     def get(self, request, pk):
         member = get_object_or_404(Member, pk=pk)
-        # Pre-populate face_descriptor as JSON string for the hidden field
-        initial = {}
-        if member.face_descriptor:
-            initial['face_descriptor'] = json.dumps(member.face_descriptor)
-        form = MemberForm(instance=member, initial=initial)
+        form = MemberForm(instance=member)
         return render(request, self.template_name, {'form': form, 'title': 'Edit Member', 'member': member})
 
     def post(self, request, pk):
         member = get_object_or_404(Member, pk=pk)
         form = MemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
-            m = form.save(commit=False)
-            m.face_descriptor = form.cleaned_data['face_descriptor']
-            m.save()
-            messages.success(request, "Member updated successfully.")
-            return redirect('member_detail', pk=m.pk)
+            member = form.save()
+            # Re-extract embedding only if a new photo was uploaded
+            if request.FILES.get('photo'):
+                ok = _extract_and_save_embedding(member)
+                if not ok:
+                    messages.warning(request, "Member updated but no face detected in the new photo.")
+                else:
+                    messages.success(request, "Member updated with new face data.")
+            else:
+                messages.success(request, "Member updated successfully.")
+            return redirect('member_detail', pk=member.pk)
         return render(request, self.template_name, {'form': form, 'title': 'Edit Member', 'member': member})
 
 
@@ -107,22 +127,35 @@ class MemberDeleteView(AdminRequiredMixin, View):
         return redirect('member_list')
 
 
+class MemberToggleSuspendView(AdminRequiredMixin, View):
+    """Admin can suspend an active/expired member or reactivate a suspended one."""
+
+    def post(self, request, pk):
+        member = get_object_or_404(Member, pk=pk)
+        if member.status == 'suspended':
+            # Reactivate — let the model recalculate status from expiry_date
+            from datetime import date
+            member.status = 'active' if member.expiry_date >= date.today() else 'expired'
+            Member.objects.filter(pk=pk).update(status=member.status)
+            messages.success(request, f"{member.full_name} has been reactivated.")
+        else:
+            Member.objects.filter(pk=pk).update(status='suspended')
+            messages.warning(request, f"{member.full_name} has been suspended.")
+        return redirect('member_detail', pk=pk)
+
+
 @login_required
 def member_search_api(request):
-    """Real-time member search — returns JSON for the live search UI."""
     q = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
-
     qs = Member.objects.select_related('membership_plan').order_by('full_name')
     if q:
         qs = (qs.filter(full_name__icontains=q) | qs.filter(email__icontains=q)).distinct()
     if status_filter:
         qs = qs.filter(status=status_filter)
-
     is_admin = hasattr(request.user, 'profile') and request.user.profile.role == 'admin'
-
     data = []
-    for m in qs[:50]:  # cap at 50 for performance
+    for m in qs[:50]:
         data.append({
             'id': m.pk,
             'full_name': m.full_name,
@@ -135,16 +168,3 @@ def member_search_api(request):
             'is_admin': is_admin,
         })
     return JsonResponse({'results': data, 'count': len(data)})
-
-
-@login_required
-def descriptors_api(request):
-    """Return all member face descriptors for browser-side matching.
-    Restricted to admin role only — face biometric data is sensitive.
-    """
-    if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied
-    members = Member.objects.exclude(face_descriptor__isnull=True).values('id', 'full_name', 'face_descriptor')
-    data = [{'id': m['id'], 'full_name': m['full_name'], 'descriptor': m['face_descriptor']} for m in members]
-    return JsonResponse(data, safe=False)

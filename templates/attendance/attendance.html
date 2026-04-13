@@ -7,7 +7,9 @@
 <a href="/attendance/export/"
   class="action-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
   style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">
-  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+  </svg>
   Export CSV
 </a>
 {% endif %}
@@ -23,32 +25,45 @@
       Face Recognition Check-in
     </h3>
 
-    <div id="camera-gate" class="mb-4">
-      <div class="rounded-xl flex flex-col items-center justify-center py-10 gap-4" style="background:rgba(99,102,241,0.05);border:2px dashed rgba(99,102,241,0.2)">
+    <!-- Camera gate -->
+    <div id="camera-gate">
+      <div class="rounded-xl flex flex-col items-center justify-center py-10 gap-4"
+        style="background:rgba(99,102,241,0.05);border:2px dashed rgba(99,102,241,0.2)">
         <div class="w-14 h-14 rounded-2xl bg-indigo-500/15 flex items-center justify-center text-3xl">📷</div>
         <div class="text-center">
           <p class="font-semibold text-sm mb-1" style="color:var(--text)">Camera is off</p>
-          <p class="text-xs" style="color:var(--text3)">Click below to load models and start scanning</p>
+          <p class="text-xs" style="color:var(--text3)">Click to start face recognition scanning</p>
         </div>
-        <button id="start-camera-btn" onclick="initFaceRecognition()"
+        <button onclick="startCamera()"
           class="action-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
           style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.35)">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+          </svg>
           Start Camera
         </button>
       </div>
     </div>
 
+    <!-- Camera panel -->
     <div id="camera-panel" class="hidden">
       <div id="fr-status" class="mb-3 text-sm rounded-xl px-3 py-2.5 border font-medium"
-        style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.2);color:#d97706">
-        ⏳ Loading models...
+        style="background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.2);color:#818cf8">
+        🎥 Camera ready — scanning every 2 seconds...
       </div>
+
       <div class="relative rounded-xl overflow-hidden mb-3" style="background:#0a0a0f;aspect-ratio:16/9">
         <video id="fr-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
-        <canvas id="fr-overlay" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+        <canvas id="fr-canvas" class="hidden"></canvas>
+        <!-- Overlay for match result -->
+        <div id="face-overlay" class="absolute inset-0 flex items-end justify-center pb-3 pointer-events-none">
+          <div id="face-label" class="hidden px-4 py-2 rounded-xl text-sm font-bold text-white"
+            style="background:rgba(0,0,0,0.7);backdrop-filter:blur(8px)"></div>
+        </div>
       </div>
+
       <div id="fr-result" class="hidden mb-3 text-sm px-4 py-3 rounded-xl font-medium border"></div>
+
       <button onclick="stopCamera()"
         class="action-btn w-full py-2 rounded-xl text-xs font-medium"
         style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
@@ -67,8 +82,7 @@
 
     <form method="post" class="space-y-3 mb-6">
       {% csrf_token %}
-      <!-- Select styled via JS to fix dark-mode option colors -->
-      <select id="member-select" name="member_id" required class="glow-input w-full px-3 py-2.5 rounded-xl text-sm">
+      <select name="member_id" required class="glow-input w-full">
         <option value="">— Choose a member —</option>
         {% for member in members %}
         <option value="{{ member.pk }}">{{ member.full_name }}</option>
@@ -84,17 +98,19 @@
     <div style="border-top:1px solid var(--border);padding-top:1rem">
       <div class="flex items-center gap-2 mb-3">
         <div class="pulse-dot"></div>
-        <h4 class="text-sm font-semibold" style="color:var(--text2)">Today's Check-ins
-          <span class="ml-1 text-xs" style="color:var(--text3)">({{ today_records|length }})</span>
+        <h4 class="text-sm font-semibold" style="color:var(--text2)">
+          Today's Check-ins <span class="ml-1 text-xs" style="color:var(--text3)">({{ today_records|length }})</span>
         </h4>
       </div>
       <div class="space-y-1 max-h-52 overflow-y-auto">
         {% for record in today_records %}
-        <div class="flex items-center justify-between py-2 px-3 rounded-lg transition-colors checkin-item">
+        <div class="flex items-center justify-between py-2 px-3 rounded-lg checkin-item transition-colors">
           <span class="font-medium text-sm" style="color:var(--text)">{{ record.member.full_name }}</span>
           <div class="flex items-center gap-2">
             <span class="text-xs" style="color:var(--text3)">{{ record.check_in_time|time:"g:i A" }}</span>
-            <span class="px-1.5 py-0.5 rounded text-xs {% if record.method == 'face' %}bg-emerald-500/15 text-emerald-600{% else %}bg-gray-500/10 text-gray-500{% endif %}">{{ record.method|capfirst }}</span>
+            <span class="px-1.5 py-0.5 rounded text-xs {% if record.method == 'face' %}bg-emerald-500/15 text-emerald-600{% else %}bg-gray-500/10 text-gray-500{% endif %}">
+              {{ record.method|capfirst }}
+            </span>
           </div>
         </div>
         {% empty %}
@@ -105,13 +121,13 @@
   </div>
 </div>
 
-<!-- Attendance history — card-based on mobile, table on desktop -->
+<!-- Attendance history -->
 <div class="glass-card rounded-2xl overflow-hidden">
   <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
     <h3 class="font-semibold text-sm" style="color:var(--text)">Attendance History</h3>
   </div>
 
-  <!-- Desktop table (hidden on mobile) -->
+  <!-- Desktop table -->
   <div class="hidden sm:block overflow-x-auto">
     <table class="w-full text-sm dark-table">
       <thead>
@@ -131,7 +147,9 @@
           <td class="px-5 py-3.5" style="color:var(--text2)">{{ record.date }}</td>
           <td class="px-5 py-3.5" style="color:var(--text2)">{{ record.check_in_time|time:"g:i A" }}</td>
           <td class="px-5 py-3.5">
-            <span class="px-2 py-0.5 rounded-lg text-xs font-medium {% if record.method == 'face' %}bg-emerald-500/15 text-emerald-600{% else %}bg-gray-500/10 text-gray-500{% endif %}">{{ record.method|capfirst }}</span>
+            <span class="px-2 py-0.5 rounded-lg text-xs font-medium {% if record.method == 'face' %}bg-emerald-500/15 text-emerald-600{% else %}bg-gray-500/10 text-gray-500{% endif %}">
+              {{ record.method|capfirst }}
+            </span>
           </td>
         </tr>
         {% empty %}
@@ -141,7 +159,7 @@
     </table>
   </div>
 
-  <!-- Mobile card list (shown only on mobile) -->
+  <!-- Mobile cards -->
   <div class="sm:hidden divide-y" style="border-color:var(--border)">
     {% for record in page_obj %}
     <div class="px-4 py-3 flex items-center justify-between gap-3">
@@ -149,7 +167,9 @@
         <a href="/members/{{ record.member.pk }}/" class="font-medium text-sm hover:text-indigo-500 transition-colors truncate block" style="color:var(--text)">{{ record.member.full_name }}</a>
         <p class="text-xs mt-0.5" style="color:var(--text3)">{{ record.date }} · {{ record.check_in_time|time:"g:i A" }}</p>
       </div>
-      <span class="px-2 py-0.5 rounded-lg text-xs font-medium flex-shrink-0 {% if record.method == 'face' %}bg-emerald-500/15 text-emerald-600{% else %}bg-gray-500/10 text-gray-500{% endif %}">{{ record.method|capfirst }}</span>
+      <span class="px-2 py-0.5 rounded-lg text-xs font-medium flex-shrink-0 {% if record.method == 'face' %}bg-emerald-500/15 text-emerald-600{% else %}bg-gray-500/10 text-gray-500{% endif %}">
+        {{ record.method|capfirst }}
+      </span>
     </div>
     {% empty %}
     <div class="px-4 py-10 text-center text-sm" style="color:var(--text3)">No attendance records.</div>
@@ -160,126 +180,136 @@
   <div class="px-5 py-4 flex items-center justify-between text-sm" style="border-top:1px solid var(--border);color:var(--text3)">
     <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     <div class="flex gap-2">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">← Prev</a>{% endif %}
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">Next →</a>{% endif %}
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">← Prev</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">Next →</a>
+      {% endif %}
     </div>
   </div>
   {% endif %}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script>
-// Fix select option colors in dark mode — browsers render <option> with system colors
-function fixSelectColors() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.querySelectorAll('select').forEach(sel => {
-    sel.style.colorScheme = isDark ? 'dark' : 'light';
-  });
-}
-fixSelectColors();
-// Re-apply when theme toggles
-const _origToggle = window.toggleTheme;
-window.toggleTheme = function() { _origToggle && _origToggle(); setTimeout(fixSelectColors, 50); };
+const CHECKIN_URL = '/attendance/checkin/';
+const SCAN_INTERVAL_MS = 2000;
 
-const MODEL_URL='/static/face-api/models', CHECKIN_URL='/attendance/checkin/', DESCRIPTORS_URL='/members/descriptors/';
-let video, overlay, statusEl, resultEl, faceMatcher=null, scanning=false, lastCheckedIn={}, scanInterval=null, cameraStream=null;
+let cameraStream = null;
+let scanInterval = null;
+let lastCheckedIn = {}; // member_id → timestamp, 10s cooldown
 
-function setStatus(msg,type='info'){
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const s={
-    info:    `background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:${isDark?'#fbbf24':'#d97706'}`,
-    success: `background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:${isDark?'#4ade80':'#059669'}`,
-    error:   `background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:${isDark?'#f87171':'#dc2626'}`,
+const video    = document.getElementById('fr-video');
+const canvas   = document.getElementById('fr-canvas');
+const statusEl = document.getElementById('fr-status');
+const resultEl = document.getElementById('fr-result');
+const labelEl  = document.getElementById('face-label');
+
+function setStatus(msg, type = 'info') {
+  const styles = {
+    info:    'background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.2);color:#818cf8',
+    success: 'background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:#059669',
+    error:   'background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626',
   };
-  statusEl.style.cssText=s[type]||s.info; statusEl.textContent=msg;
-}
-function showResult(msg,ok){
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  resultEl.style.cssText=ok
-    ?`background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:${isDark?'#4ade80':'#059669'}`
-    :`background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:${isDark?'#f87171':'#dc2626'}`;
-  resultEl.textContent=msg; resultEl.classList.remove('hidden');
-  setTimeout(()=>resultEl.classList.add('hidden'),4000);
+  statusEl.style.cssText = styles[type] || styles.info;
+  statusEl.textContent = msg;
 }
 
-async function initFaceRecognition(){
-  document.getElementById('camera-gate').classList.add('hidden');
-  document.getElementById('camera-panel').classList.remove('hidden');
-  video=document.getElementById('fr-video');
-  overlay=document.getElementById('fr-overlay');
-  statusEl=document.getElementById('fr-status');
-  resultEl=document.getElementById('fr-result');
-  try{
-    setStatus('⏳ Loading models (1/3)...');
-    await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-    setStatus('⏳ Loading models (2/3)...');
-    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-    setStatus('⏳ Loading models (3/3)...');
-    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-    setStatus('✅ Models loaded. Loading descriptors...','success');
-    await loadDescriptors();
-  }catch(e){setStatus('❌ Failed to load models.','error');}
+function showResult(msg, ok) {
+  resultEl.style.cssText = ok
+    ? 'background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:#059669'
+    : 'background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626';
+  resultEl.textContent = msg;
+  resultEl.classList.remove('hidden');
+  setTimeout(() => resultEl.classList.add('hidden'), 4000);
 }
 
-async function loadDescriptors(){
-  try{
-    const res=await fetch(DESCRIPTORS_URL), members=await res.json();
-    if(!members.length){setStatus('⚠️ No members with face data. Register members first.');return;}
-    const ld=members.map(m=>new faceapi.LabeledFaceDescriptors(String(m.id),[new Float32Array(m.descriptor)]));
-    faceMatcher=new faceapi.FaceMatcher(ld,0.5);
-    setStatus(`✅ Ready — ${members.length} member(s) loaded. Starting camera...`,'success');
-    await startCamera();
-  }catch(e){setStatus('❌ Failed to load descriptors.','error');}
+function showLabel(msg, ok) {
+  labelEl.textContent = msg;
+  labelEl.style.background = ok ? 'rgba(16,185,129,0.85)' : 'rgba(239,68,68,0.85)';
+  labelEl.classList.remove('hidden');
+  setTimeout(() => labelEl.classList.add('hidden'), 3000);
 }
 
-async function startCamera(){
-  try{
-    cameraStream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
-    video.srcObject=cameraStream;
-    video.addEventListener('loadedmetadata',()=>{overlay.width=video.videoWidth;overlay.height=video.videoHeight;startScanning();});
-  }catch(e){setStatus('❌ Camera access denied.','error');}
+async function startCamera() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    video.srcObject = cameraStream;
+    document.getElementById('camera-gate').classList.add('hidden');
+    document.getElementById('camera-panel').classList.remove('hidden');
+    setStatus('🎥 Camera ready — scanning every 2 seconds...');
+    scanInterval = setInterval(scanFrame, SCAN_INTERVAL_MS);
+  } catch (err) {
+    alert('Camera access denied. Please allow camera permissions.');
+  }
 }
 
-function startScanning(){setStatus('🎥 Scanning for faces...','success');scanInterval=setInterval(scanFace,1000);}
-
-function stopCamera(){
-  if(scanInterval){clearInterval(scanInterval);scanInterval=null;}
-  if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
+function stopCamera() {
+  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
   document.getElementById('camera-panel').classList.add('hidden');
   document.getElementById('camera-gate').classList.remove('hidden');
 }
 
-async function scanFace(){
-  if(scanning||!faceMatcher)return; scanning=true;
-  try{
-    const det=await faceapi.detectAllFaces(video,new faceapi.SsdMobilenetv1Options({minConfidence:0.5})).withFaceLandmarks().withFaceDescriptors();
-    const ctx=overlay.getContext('2d'); ctx.clearRect(0,0,overlay.width,overlay.height);
-    if(!det.length){scanning=false;return;}
-    const dims=faceapi.matchDimensions(overlay,video,true),resized=faceapi.resizeResults(det,dims);
-    for(const d of resized){
-      const match=faceMatcher.findBestMatch(d.descriptor),box=d.detection.box;
-      if(match.label!=='unknown'){
-        const id=parseInt(match.label),now=Date.now();
-        if(!lastCheckedIn[id]||now-lastCheckedIn[id]>10000){lastCheckedIn[id]=now;await doCheckin(id);}
-        ctx.strokeStyle='#22c55e';ctx.lineWidth=2;ctx.strokeRect(box.x,box.y,box.width,box.height);
-      }else{
-        ctx.strokeStyle='#ef4444';ctx.lineWidth=2;ctx.strokeRect(box.x,box.y,box.width,box.height);
-        showResult('❌ Face not recognized. Use manual check-in.',false);
+async function scanFrame() {
+  if (!cameraStream) return;
+
+  // Capture frame from video to canvas
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  // Convert to base64 JPEG (0.8 quality — good balance of size vs accuracy)
+  const imageB64 = canvas.toDataURL('image/jpeg', 0.8);
+
+  try {
+    const res = await fetch(CHECKIN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({ image: imageB64 }),
+    });
+
+    const data = await res.json();
+
+    if (data.status === 'ok') {
+      const now = Date.now();
+      const id = data.member_id;
+      if (!lastCheckedIn[id] || now - lastCheckedIn[id] > 10000) {
+        lastCheckedIn[id] = now;
+        showResult(`✅ Welcome, ${data.member_name}!`, true);
+        showLabel(`✅ ${data.member_name}`, true);
+        setStatus(`✅ ${data.member_name} checked in`, 'success');
+        setTimeout(() => { setStatus('🎥 Camera ready — scanning every 2 seconds...'); location.reload(); }, 2500);
       }
+    } else if (data.status === 'duplicate') {
+      showLabel(`ℹ️ ${data.member_name} already checked in`, false);
+    } else if (data.status === 'expired') {
+      showResult(`⛔ ${data.message}`, false);
+      showLabel(`⛔ Expired — ${data.member_name}`, false);
+      // Cooldown so it doesn't spam every 2s
+      lastCheckedIn[data.member_id] = Date.now();
+      setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
+    } else if (data.status === 'suspended') {
+      showResult(`🚫 ${data.message}`, false);
+      showLabel(`🚫 Suspended — ${data.member_name}`, false);
+      lastCheckedIn[data.member_id] = Date.now();
+      setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
     }
-  }catch(e){console.error(e);}
-  scanning=false;
+    // unknown / no_face → keep scanning silently
+  } catch (err) {
+    console.error('Scan error:', err);
+  }
 }
 
-async function doCheckin(id){
-  try{
-    const res=await fetch(CHECKIN_URL,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},body:JSON.stringify({member_id:id})});
-    const data=await res.json();
-    if(res.ok){showResult(`✅ Welcome, ${data.member_name}!`,true);setTimeout(()=>location.reload(),2000);}
-    else if(res.status===409){showResult(`ℹ️ ${data.member_name} already checked in today.`,false);}
-    else{showResult('❌ Check-in failed.',false);}
-  }catch(e){showResult('❌ Network error.',false);}
+function getCookie(name) {
+  const v = `; ${document.cookie}`;
+  const p = v.split(`; ${name}=`);
+  if (p.length === 2) return p.pop().split(';').shift();
+  return '';
 }
-function getCookie(n){const v=`; ${document.cookie}`,p=v.split(`; ${n}=`);if(p.length===2)return p.pop().split(';').shift();return '';}
 </script>
 {% endblock %}

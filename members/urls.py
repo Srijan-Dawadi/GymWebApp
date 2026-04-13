@@ -7,6 +7,6 @@ urlpatterns = [
     path('<int:pk>/', views.MemberDetailView.as_view(), name='member_detail'),
     path('<int:pk>/edit/', views.MemberEditView.as_view(), name='member_edit'),
     path('<int:pk>/delete/', views.MemberDeleteView.as_view(), name='member_delete'),
-    path('descriptors/', views.descriptors_api, name='member_descriptors'),
+    path('<int:pk>/toggle-suspend/', views.MemberToggleSuspendView.as_view(), name='member_toggle_suspend'),
     path('search/', views.member_search_api, name='member_search_api'),
 ]

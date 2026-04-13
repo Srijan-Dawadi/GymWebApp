@@ -3,241 +3,98 @@
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-5">
+<div class="max-w-lg mx-auto glass-card rounded-2xl p-6">
 
-  <!-- Face capture panel -->
-  <div class="glass-card rounded-2xl p-6">
-    <h3 class="font-semibold mb-4 flex items-center gap-2" style="color:var(--text)">
-      <span class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-500 text-sm flex-shrink-0">📷</span>
-      Face Registration
-    </h3>
+  <div class="mb-5 rounded-xl px-4 py-3 flex items-start gap-3"
+    style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
+    <svg class="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <p class="text-sm" style="color:var(--text2)">
+      Upload a clear, front-facing photo of the member.
+      The system will automatically extract their face data for attendance recognition.
+    </p>
+  </div>
 
-    {% if form.face_descriptor.value %}
-    <!-- Already has a face — show registered state with option to re-capture -->
-    <div id="face-registered-banner" class="mb-3 text-sm rounded-xl px-3 py-2.5 border flex items-center gap-2"
-      style="background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:#059669">
-      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      Face already registered. Open camera below to update it.
+  <form method="post" enctype="multipart/form-data" id="member-form" class="space-y-4">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="text-sm rounded-xl px-3 py-2.5 border"
+      style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626">
+      {{ form.non_field_errors }}
     </div>
     {% endif %}
 
-    <!-- Camera gate — shown before camera starts -->
-    <div id="camera-gate" class="mb-4">
-      <div class="rounded-xl flex flex-col items-center justify-center py-8 gap-4"
-        style="background:rgba(99,102,241,0.05);border:2px dashed rgba(99,102,241,0.2)">
-        <div class="w-12 h-12 rounded-2xl bg-indigo-500/15 flex items-center justify-center text-2xl">📷</div>
-        <div class="text-center">
-          <p class="font-semibold text-sm mb-1" style="color:var(--text)">Camera is off</p>
-          <p class="text-xs" style="color:var(--text3)">
-            {% if form.face_descriptor.value %}Click to re-capture face{% else %}Click to capture face for this member{% endif %}
-          </p>
+    {% for field in form.visible_fields %}
+    <div>
+      <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
+        {{ field.label }}{% if field.field.required %} <span style="color:#ef4444">*</span>{% endif %}
+      </label>
+
+      {% if field.field.widget.input_type == 'select' %}
+      <select name="{{ field.html_name }}" class="w-full glow-input">
+        {% for val, label in field.field.choices %}
+        <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      {% elif field.field.widget.input_type == 'file' %}
+      <!-- Photo upload with preview -->
+      <div class="space-y-3">
+        {% if member and member.photo %}
+        <div class="flex items-center gap-3 p-3 rounded-xl" style="background:var(--surface2);border:1px solid var(--border)">
+          <img src="{{ member.photo.url }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-indigo-500/20" alt="Current photo" />
+          <div>
+            <p class="text-xs font-medium" style="color:var(--text)">Current photo</p>
+            <p class="text-xs" style="color:var(--text3)">Upload a new one to replace it</p>
+          </div>
         </div>
-        <button type="button" onclick="initCamera()"
-          class="action-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.35)">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
-          Open Camera
-        </button>
-      </div>
-    </div>
-
-    <!-- Camera panel — hidden until user clicks Open Camera -->
-    <div id="camera-panel" class="hidden">
-      <div id="model-status" class="mb-3 text-sm rounded-xl px-3 py-2.5 border font-medium"
-        style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#d97706">
-        ⏳ Loading face recognition models...
+        {% endif %}
+        <input type="file" name="{{ field.html_name }}" accept="image/*" id="photo-input"
+          class="w-full glow-input file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/15 file:text-indigo-500 cursor-pointer" />
+        <!-- Preview of newly selected photo -->
+        <div id="photo-preview" class="hidden">
+          <img id="preview-img" class="w-20 h-20 rounded-xl object-cover ring-2 ring-indigo-500/30" alt="Preview" />
+        </div>
       </div>
 
-      <div class="relative rounded-xl overflow-hidden mb-4" style="background:#0a0a0f;aspect-ratio:16/9">
-        <video id="video" autoplay muted playsinline class="w-full h-full object-cover"></video>
-        <canvas id="overlay" class="absolute inset-0 w-full h-full"></canvas>
-      </div>
-
-      <div id="capture-result" class="hidden mb-3 text-sm rounded-xl px-3 py-2.5 border"
-        style="background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:#059669">
-        ✅ Face captured successfully!
-      </div>
-      <div id="capture-error" class="hidden mb-3 text-sm rounded-xl px-3 py-2.5 border"
-        style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626">
-        ❌ No face detected. Please look at the camera and try again.
-      </div>
-
-      <div class="flex gap-2">
-        <button id="capture-btn" type="button" disabled
-          class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
-          📸 Capture Face
-        </button>
-        <button type="button" onclick="closeCamera()"
-          class="action-btn px-4 py-2.5 rounded-xl text-sm font-medium"
-          style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
-          ✕ Close
-        </button>
-      </div>
-
-      <div id="captured-preview" class="hidden mt-4 text-center">
-        <canvas id="snapshot" class="rounded-xl mx-auto" style="border:1px solid var(--border)" width="200" height="150"></canvas>
-        <p class="text-xs mt-2" style="color:var(--text3)">Captured snapshot</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Member form -->
-  <div class="glass-card rounded-2xl p-6">
-    <h3 class="font-semibold mb-4 flex items-center gap-2" style="color:var(--text)">
-      <span class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-500 text-sm flex-shrink-0">👤</span>
-      Member Details
-    </h3>
-
-    <form method="post" enctype="multipart/form-data" id="member-form" class="space-y-4">
-      {% csrf_token %}
-      <input type="hidden" name="face_descriptor" id="face_descriptor_input" value="{{ form.face_descriptor.value|default:'' }}" />
-
-      {% if form.non_field_errors %}
-      <div class="text-sm rounded-xl px-3 py-2.5 border" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626">
-        {{ form.non_field_errors }}
-      </div>
+      {% else %}
+      <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
+        value="{{ field.value|default:'' }}"
+        class="w-full glow-input {% if field.errors %}!border-red-400{% endif %}" />
       {% endif %}
 
-      {% for field in form.visible_fields %}
-      <div>
-        <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
-          {{ field.label }}{% if field.field.required %} <span style="color:#ef4444">*</span>{% endif %}
-        </label>
-        {% if field.field.widget.input_type == 'select' %}
-        <select name="{{ field.html_name }}" class="w-full glow-input">
-          {% for val, label in field.field.choices %}
-          <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-        {% elif field.field.widget.input_type == 'file' %}
-        <input type="file" name="{{ field.html_name }}" accept="image/*"
-          class="w-full glow-input file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-500/20 file:text-indigo-500" />
-        {% else %}
-        <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
-          value="{{ field.value|default:'' }}"
-          class="w-full glow-input {% if field.errors %}!border-red-400{% endif %}" />
-        {% endif %}
-        {% if field.errors %}
-        <p class="text-xs mt-1" style="color:#ef4444">{{ field.errors|join:", " }}</p>
-        {% endif %}
-      </div>
-      {% endfor %}
-
-      {% if form.face_descriptor.errors %}
-      <div class="text-sm rounded-xl px-3 py-2.5 border" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626">
-        {{ form.face_descriptor.errors|join:", " }}
-      </div>
+      {% if field.errors %}
+      <p class="text-xs mt-1" style="color:#ef4444">{{ field.errors|join:", " }}</p>
       {% endif %}
+    </div>
+    {% endfor %}
 
-      <div class="flex gap-3 pt-2">
-        <button type="submit"
-          class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
-          Save Member
-        </button>
-        <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
-          Cancel
-        </a>
-      </div>
-    </form>
-  </div>
+    <div class="flex gap-3 pt-2">
+      <button type="submit" id="submit-btn"
+        class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm"
+        style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+        Save Member
+      </button>
+      <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
+        Cancel
+      </a>
+    </div>
+  </form>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script>
-const MODEL_URL = '/static/face-api/models';
-const descriptorInput = document.getElementById('face_descriptor_input');
-const captureResult  = document.getElementById('capture-result');
-const captureError   = document.getElementById('capture-error');
-const capturedPreview = document.getElementById('captured-preview');
-let modelsLoaded = false;
-let cameraStream = null;
-
-function setStatus(msg, type = 'info') {
-  const el = document.getElementById('model-status');
-  const styles = {
-    info:    'background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#d97706',
-    success: 'background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:#059669',
-    error:   'background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626',
+// Show preview when a photo is selected
+document.getElementById('photo-input').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('photo-preview').classList.remove('hidden');
   };
-  el.style.cssText = styles[type] || styles.info;
-  el.textContent = msg;
-}
-
-async function initCamera() {
-  document.getElementById('camera-gate').classList.add('hidden');
-  document.getElementById('camera-panel').classList.remove('hidden');
-  const banner = document.getElementById('face-registered-banner');
-  if (banner) banner.classList.add('hidden');
-
-  if (!modelsLoaded) {
-    try {
-      setStatus('⏳ Loading models (1/3)...');
-      await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-      setStatus('⏳ Loading models (2/3)...');
-      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      setStatus('⏳ Loading models (3/3)...');
-      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-      modelsLoaded = true;
-    } catch (err) {
-      setStatus('❌ Failed to load models. Face capture unavailable.', 'error');
-      return;
-    }
-  }
-
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-    const video = document.getElementById('video');
-    video.srcObject = cameraStream;
-    document.getElementById('capture-btn').disabled = false;
-    setStatus('✅ Camera ready. Position your face and click Capture.', 'success');
-  } catch (err) {
-    setStatus('❌ Camera access denied. Please allow camera permissions.', 'error');
-  }
-}
-
-function closeCamera() {
-  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-  document.getElementById('camera-panel').classList.add('hidden');
-  document.getElementById('camera-gate').classList.remove('hidden');
-  const banner = document.getElementById('face-registered-banner');
-  if (banner) banner.classList.remove('hidden');
-}
-
-document.getElementById('capture-btn').addEventListener('click', async () => {
-  const video = document.getElementById('video');
-  const captureBtn = document.getElementById('capture-btn');
-  captureBtn.disabled = true;
-  captureBtn.textContent = '⏳ Detecting...';
-  captureError.classList.add('hidden');
-  captureResult.classList.add('hidden');
-  try {
-    const detection = await faceapi
-      .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-      .withFaceLandmarks().withFaceDescriptor();
-    if (!detection) {
-      captureError.classList.remove('hidden');
-    } else {
-      descriptorInput.value = JSON.stringify(Array.from(detection.descriptor));
-      const snap = document.getElementById('snapshot');
-      snap.getContext('2d').drawImage(video, 0, 0, snap.width, snap.height);
-      capturedPreview.classList.remove('hidden');
-      captureResult.classList.remove('hidden');
-      captureResult.textContent = '✅ Face captured successfully!';
-    }
-  } catch (err) { captureError.classList.remove('hidden'); }
-  captureBtn.disabled = false;
-  captureBtn.textContent = '📸 Capture Face';
-});
-
-document.getElementById('member-form').addEventListener('submit', e => {
-  if (!descriptorInput.value || descriptorInput.value.length < 10) {
-    e.preventDefault();
-    captureError.classList.remove('hidden');
-    captureError.textContent = '❌ Please capture your face before submitting.';
-    document.getElementById('camera-gate').scrollIntoView({ behavior: 'smooth' });
-  }
+  reader.readAsDataURL(file);
 });
 </script>
 {% endblock %}

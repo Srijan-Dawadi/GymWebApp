@@ -1,26 +1,18 @@
 from django import forms
-from .models import Member, MembershipPlan
+from .models import Member
 
 
 class MemberForm(forms.ModelForm):
-    face_descriptor = forms.CharField(widget=forms.HiddenInput(), required=False)
-
     class Meta:
         model = Member
-        fields = ['full_name', 'phone', 'email', 'photo', 'face_descriptor', 'join_date', 'membership_plan']
+        fields = ['full_name', 'phone', 'email', 'photo', 'join_date', 'membership_plan']
         widgets = {
             'join_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
-    def clean_face_descriptor(self):
-        import json
-        data = self.cleaned_data.get('face_descriptor')
-        if not data:
-            raise forms.ValidationError("Face descriptor is required. Please capture your face using the webcam.")
-        try:
-            descriptor = json.loads(data)
-            if not isinstance(descriptor, list) or len(descriptor) != 128:
-                raise forms.ValidationError("Invalid face descriptor format.")
-        except (json.JSONDecodeError, TypeError):
-            raise forms.ValidationError("Invalid face descriptor data.")
-        return descriptor
+    def clean_photo(self):
+        photo = self.cleaned_data.get('photo')
+        # On create, photo is required for face registration
+        if not photo and not self.instance.pk:
+            raise forms.ValidationError("A photo is required to register the member's face.")
+        return photo

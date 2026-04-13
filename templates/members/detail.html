@@ -10,6 +10,26 @@
   Edit
 </a>
 {% if user.profile.role == 'admin' %}
+<!-- Suspend / Reactivate -->
+<form method="post" action="/members/{{ member.pk }}/toggle-suspend/" class="inline">
+  {% csrf_token %}
+  {% if member.status == 'suspended' %}
+  <button type="submit"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-emerald-400 hover:text-white hover:bg-emerald-500"
+    style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    Reactivate
+  </button>
+  {% else %}
+  <button type="submit"
+    onclick="return confirm('Suspend {{ member.full_name }}? They will not be able to check in.')"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-orange-400 hover:text-white hover:bg-orange-500"
+    style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2)">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+    Suspend
+  </button>
+  {% endif %}
+</form>
 <a href="/members/{{ member.pk }}/delete/"
   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-red-400 hover:text-white hover:bg-red-500"
   style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">
@@ -40,9 +60,18 @@
     <span class="mt-3 px-3 py-1 rounded-lg text-sm font-semibold
       {% if member.status == 'active' %}bg-emerald-500/15 text-emerald-600
       {% elif member.status == 'expired' %}bg-red-500/15 text-red-600
-      {% else %}bg-gray-500/15 text-gray-500{% endif %}">
-      {{ member.get_status_display }}
+      {% else %}bg-orange-500/15 text-orange-500{% endif %}">
+      {% if member.status == 'suspended' %}🚫 Suspended{% else %}{{ member.get_status_display }}{% endif %}
     </span>
+    {% if member.status == 'suspended' %}
+    <p class="text-xs mt-2 px-3 py-1.5 rounded-lg" style="background:rgba(249,115,22,0.08);color:#f97316;border:1px solid rgba(249,115,22,0.2)">
+      This member cannot check in until reactivated by admin.
+    </p>
+    {% elif member.status == 'expired' %}
+    <p class="text-xs mt-2 px-3 py-1.5 rounded-lg" style="background:rgba(239,68,68,0.08);color:#ef4444;border:1px solid rgba(239,68,68,0.2)">
+      Membership expired on {{ member.expiry_date }}. Please record a new payment.
+    </p>
+    {% endif %}
 
     <div class="mt-5 w-full space-y-3 text-sm" style="border-top:1px solid var(--border);padding-top:1.25rem">
       <div class="flex justify-between items-center">
