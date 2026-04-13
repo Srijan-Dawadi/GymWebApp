@@ -3,120 +3,99 @@
 {% block page_title %}Members{% endblock %}
 
 {% block header_actions %}
-<a href="/members/add/" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-  + Add Member
+<a href="/members/add/"
+  class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-150 hover:-translate-y-0.5"
+  style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.35)">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  Add Member
 </a>
 {% endblock %}
 
 {% block content %}
-<!-- Search & filter bar -->
-<div class="flex flex-wrap gap-3 mb-6">
+<!-- Search bar -->
+<div class="flex flex-wrap gap-3 mb-5">
   <div class="relative flex-1 min-w-48">
-    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
     </svg>
-    <input
-      id="search-input"
-      type="text"
-      value="{{ q }}"
-      placeholder="Search by name or email..."
-      autocomplete="off"
-      class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
-    />
-    <!-- Spinner -->
-    <svg id="search-spinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+    <input id="search-input" type="text" value="{{ q }}" placeholder="Search members..." autocomplete="off"
+      class="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm text-white placeholder-gray-600 glow-input transition-all"
+      style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)" />
+    <svg id="search-spinner" class="hidden absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
     </svg>
   </div>
 
-  <select id="status-filter" class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-    <option value="">All Statuses</option>
-    <option value="active"    {% if status_filter == 'active'    %}selected{% endif %}>Active</option>
-    <option value="expired"   {% if status_filter == 'expired'   %}selected{% endif %}>Expired</option>
-    <option value="suspended" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended</option>
+  <select id="status-filter"
+    class="px-4 py-2.5 rounded-xl text-sm text-gray-300 glow-input transition-all"
+    style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">
+    <option value="" class="bg-gray-900">All Statuses</option>
+    <option value="active"    class="bg-gray-900" {% if status_filter == 'active'    %}selected{% endif %}>Active</option>
+    <option value="expired"   class="bg-gray-900" {% if status_filter == 'expired'   %}selected{% endif %}>Expired</option>
+    <option value="suspended" class="bg-gray-900" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended</option>
   </select>
 
-  <button id="clear-btn" class="{% if not q and not status_filter %}hidden{% endif %} px-4 py-2 text-gray-600 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">
+  <button id="clear-btn" class="{% if not q and not status_filter %}hidden{% endif %} px-4 py-2.5 text-gray-400 text-sm rounded-xl border transition-all hover:text-white hover:border-gray-500"
+    style="border-color:rgba(255,255,255,0.08);background:rgba(255,255,255,0.03)">
     Clear
   </button>
 </div>
 
-<!-- Result count -->
-<p id="result-count" class="text-xs text-gray-400 mb-3 hidden"></p>
+<p id="result-count" class="text-xs text-gray-600 mb-3 hidden"></p>
 
-<!-- Members table -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-  <table class="w-full text-sm">
-    <thead class="bg-gray-50 border-b border-gray-100">
+<!-- Table -->
+<div class="glass-card rounded-2xl overflow-hidden">
+  <div class="overflow-x-auto">
+  <table class="w-full text-sm dark-table min-w-[640px]">
+    <thead>
       <tr>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Member</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Plan</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Expiry</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Status</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Actions</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Member</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Plan</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Expiry</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Status</th>
+        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Actions</th>
       </tr>
     </thead>
-    <tbody id="members-tbody" class="divide-y divide-gray-50">
+    <tbody id="members-tbody">
       {% for member in page_obj %}
-      <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-5 py-3">
+      <tr>
+        <td class="px-5 py-3.5">
           <div class="flex items-center gap-3">
             {% if member.photo %}
-            <img src="{{ member.photo.url }}" class="w-9 h-9 rounded-full object-cover flex-shrink-0" alt="" />
+            <img src="{{ member.photo.url }}" class="w-9 h-9 rounded-full object-cover ring-2 ring-indigo-500/20 flex-shrink-0" alt="" />
             {% else %}
-            <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold flex-shrink-0">
-              {{ member.full_name|first }}
-            </div>
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{{ member.full_name|first }}</div>
             {% endif %}
             <div>
-              <p class="font-medium text-gray-900">{{ member.full_name }}</p>
-              <p class="text-gray-400 text-xs">{{ member.email }}</p>
+              <p class="font-medium" style="color:var(--text)">{{ member.full_name }}</p>
+              <p class="text-xs" style="color:var(--text3)">{{ member.email }}</p>
             </div>
           </div>
         </td>
-        <td class="px-5 py-3 text-gray-700">{{ member.membership_plan.name }}</td>
-        <td class="px-5 py-3 text-gray-700">{{ member.expiry_date }}</td>
-        <td class="px-5 py-3">
-          <span class="px-2.5 py-1 rounded-full text-xs font-medium
-            {% if member.status == 'active' %}bg-green-100 text-green-700
-            {% elif member.status == 'expired' %}bg-red-100 text-red-700
-            {% else %}bg-gray-100 text-gray-600{% endif %}">
+        <td class="px-5 py-3.5 text-sm" style="color:var(--text2)">{{ member.membership_plan.name }}</td>
+        <td class="px-5 py-3.5 text-sm" style="color:var(--text2)">{{ member.expiry_date }}</td>
+        <td class="px-5 py-3.5">
+          <span class="px-2.5 py-1 rounded-lg text-xs font-semibold
+            {% if member.status == 'active' %}bg-emerald-500/15 text-emerald-400
+            {% elif member.status == 'expired' %}bg-red-500/15 text-red-400
+            {% else %}bg-gray-500/15 text-gray-400{% endif %}">
             {{ member.get_status_display }}
           </span>
         </td>
-        <td class="px-5 py-3">
-          <div class="flex items-center gap-2">
-            <a href="/members/{{ member.pk }}/"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                     bg-indigo-50 text-indigo-700 border border-indigo-200
-                     hover:bg-indigo-600 hover:text-white hover:border-indigo-600
-                     transition-all duration-150 group">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-              </svg>
+        <td class="px-5 py-3.5">
+          <div class="flex items-center gap-1.5 flex-nowrap">
+            <a href="/members/{{ member.pk }}/" class="action-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-400 hover:text-white hover:bg-indigo-500 whitespace-nowrap" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
               View
             </a>
-            <a href="/members/{{ member.pk }}/edit/"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                     bg-amber-50 text-amber-700 border border-amber-200
-                     hover:bg-amber-500 hover:text-white hover:border-amber-500
-                     transition-all duration-150">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-              </svg>
+            <a href="/members/{{ member.pk }}/edit/" class="action-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-amber-400 hover:text-white hover:bg-amber-500 whitespace-nowrap" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               Edit
             </a>
             {% if user.profile.role == 'admin' %}
-            <a href="/members/{{ member.pk }}/delete/"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                     bg-red-50 text-red-600 border border-red-200
-                     hover:bg-red-500 hover:text-white hover:border-red-500
-                     transition-all duration-150">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
+            <a href="/members/{{ member.pk }}/delete/" class="action-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:text-white hover:bg-red-500 whitespace-nowrap" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               Delete
             </a>
             {% endif %}
@@ -124,22 +103,27 @@
         </td>
       </tr>
       {% empty %}
-      <tr id="empty-row"><td colspan="5" class="px-5 py-10 text-center text-gray-400">No members found.</td></tr>
+      <tr><td colspan="5" class="px-5 py-14 text-center" style="color:var(--text3)">No members found.</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 
-  <!-- Pagination (hidden during live search) -->
+  <!-- Pagination -->
   <div id="pagination-bar" class="{% if not page_obj.has_other_pages %}hidden{% endif %}">
     {% if page_obj.has_other_pages %}
-    <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-600">
+    <div class="px-5 py-4 flex items-center justify-between text-sm text-gray-500" style="border-top:1px solid rgba(255,255,255,0.05)">
       <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
       <div class="flex gap-2">
         {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}" class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">← Prev</a>
+        <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}"
+          class="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
+          style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">← Prev</a>
         {% endif %}
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}" class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Next →</a>
+        <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}"
+          class="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
+          style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">Next →</a>
         {% endif %}
       </div>
     </div>
@@ -155,114 +139,51 @@ const spinner       = document.getElementById('search-spinner');
 const resultCount   = document.getElementById('result-count');
 const paginationBar = document.getElementById('pagination-bar');
 const clearBtn      = document.getElementById('clear-btn');
-const isAdmin       = {{ user.profile.role|yesno:"true,false" }} === true || '{{ user.profile.role }}' === 'admin';
+let debounceTimer   = null;
 
-let debounceTimer = null;
-
-const STATUS_CLASSES = {
-  active:    'bg-green-100 text-green-700',
-  expired:   'bg-red-100 text-red-700',
-  suspended: 'bg-gray-100 text-gray-600',
+const STATUS = {
+  active:    'bg-emerald-500/15 text-emerald-400',
+  expired:   'bg-red-500/15 text-red-400',
+  suspended: 'bg-gray-500/15 text-gray-400',
 };
 
-function avatarHtml(member) {
-  if (member.photo_url) {
-    return `<img src="${member.photo_url}" class="w-9 h-9 rounded-full object-cover flex-shrink-0" alt="" />`;
-  }
-  const initial = member.full_name.charAt(0).toUpperCase();
-  return `<div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold flex-shrink-0">${initial}</div>`;
+function avatarHtml(m) {
+  if (m.photo_url) return `<img src="${m.photo_url}" class="w-9 h-9 rounded-full object-cover ring-2 flex-shrink-0" style="--tw-ring-color:rgba(99,102,241,0.2)" alt="" />`;
+  return `<div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">${m.full_name.charAt(0).toUpperCase()}</div>`;
 }
 
-function actionButtons(member) {
-  const viewBtn = `
-    <a href="/members/${member.id}/"
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-             bg-indigo-50 text-indigo-700 border border-indigo-200
-             hover:bg-indigo-600 hover:text-white hover:border-indigo-600
-             transition-all duration-150">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-      </svg>
-      View
-    </a>`;
-
-  const editBtn = `
-    <a href="/members/${member.id}/edit/"
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-             bg-amber-50 text-amber-700 border border-amber-200
-             hover:bg-amber-500 hover:text-white hover:border-amber-500
-             transition-all duration-150">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-      </svg>
-      Edit
-    </a>`;
-
-  const deleteBtn = member.is_admin ? `
-    <a href="/members/${member.id}/delete/"
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-             bg-red-50 text-red-600 border border-red-200
-             hover:bg-red-500 hover:text-white hover:border-red-500
-             transition-all duration-150">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-      </svg>
-      Delete
-    </a>` : '';
-
-  return `<div class="flex items-center gap-2">${viewBtn}${editBtn}${deleteBtn}</div>`;
+function actionButtons(m) {
+  const view = `<a href="/members/${m.id}/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-indigo-400 hover:text-white hover:bg-indigo-500" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>View</a>`;
+  const edit = `<a href="/members/${m.id}/edit/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-amber-400 hover:text-white hover:bg-amber-500" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Edit</a>`;
+  const del = m.is_admin ? `<a href="/members/${m.id}/delete/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-red-400 hover:text-white hover:bg-red-500" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>Delete</a>` : '';
+  return `<div class="flex items-center gap-2">${view}${edit}${del}</div>`;
 }
 
 function renderRows(members) {
-  if (members.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-10 text-center text-gray-400">No members found.</td></tr>`;
+  if (!members.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-14 text-center text-gray-600">No members found.</td></tr>`;
     return;
   }
-
-  tbody.innerHTML = members.map(m => {
-    const statusClass = STATUS_CLASSES[m.status] || 'bg-gray-100 text-gray-600';
-    return `
-      <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-5 py-3">
-          <div class="flex items-center gap-3">
-            ${avatarHtml(m)}
-            <div>
-              <p class="font-medium text-gray-900">${m.full_name}</p>
-              <p class="text-gray-400 text-xs">${m.email}</p>
-            </div>
-          </div>
-        </td>
-        <td class="px-5 py-3 text-gray-700">${m.plan}</td>
-        <td class="px-5 py-3 text-gray-700">${m.expiry_date}</td>
-        <td class="px-5 py-3">
-          <span class="px-2.5 py-1 rounded-full text-xs font-medium ${statusClass}">${m.status_display}</span>
-        </td>
-        <td class="px-5 py-3">${actionButtons(m)}</td>
-      </tr>`;
-  }).join('');
+  tbody.innerHTML = members.map(m => `
+    <tr>
+      <td class="px-5 py-3.5"><div class="flex items-center gap-3">${avatarHtml(m)}<div><p class="font-medium text-gray-100">${m.full_name}</p><p class="text-gray-500 text-xs">${m.email}</p></div></div></td>
+      <td class="px-5 py-3.5 text-gray-400 text-sm">${m.plan}</td>
+      <td class="px-5 py-3.5 text-gray-400 text-sm">${m.expiry_date}</td>
+      <td class="px-5 py-3.5"><span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${STATUS[m.status] || STATUS.suspended}">${m.status_display}</span></td>
+      <td class="px-5 py-3.5">${actionButtons(m)}</td>
+    </tr>`).join('');
 }
 
 function doSearch() {
   const q = searchInput.value.trim();
   const status = statusFilter.value;
-
-  // Show/hide clear button
   clearBtn.classList.toggle('hidden', !q && !status);
-
-  // If both empty, restore original server-rendered content and pagination
-  if (!q && !status) {
-    location.href = '/members/';
-    return;
-  }
-
+  if (!q && !status) { location.href = '/members/'; return; }
   spinner.classList.remove('hidden');
   paginationBar.classList.add('hidden');
-
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   if (status) params.set('status', status);
-
   fetch(`/members/search/?${params}`)
     .then(r => r.json())
     .then(data => {
@@ -270,28 +191,12 @@ function doSearch() {
       resultCount.textContent = `${data.count} member${data.count !== 1 ? 's' : ''} found`;
       resultCount.classList.remove('hidden');
     })
-    .catch(() => {
-      tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-10 text-center text-red-400">Search failed. Please try again.</td></tr>`;
-    })
+    .catch(() => { tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-10 text-center text-red-400">Search failed.</td></tr>`; })
     .finally(() => spinner.classList.add('hidden'));
 }
 
-searchInput.addEventListener('input', () => {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(doSearch, 250);
-});
-
-statusFilter.addEventListener('change', () => {
-  clearTimeout(debounceTimer);
-  doSearch();
-});
-
-clearBtn.addEventListener('click', () => {
-  searchInput.value = '';
-  statusFilter.value = '';
-  resultCount.classList.add('hidden');
-  clearBtn.classList.add('hidden');
-  location.href = '/members/';
-});
+searchInput.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(doSearch, 250); });
+statusFilter.addEventListener('change', () => { clearTimeout(debounceTimer); doSearch(); });
+clearBtn.addEventListener('click', () => { searchInput.value = ''; statusFilter.value = ''; resultCount.classList.add('hidden'); location.href = '/members/'; });
 </script>
 {% endblock %}

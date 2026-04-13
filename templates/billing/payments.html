@@ -3,71 +3,137 @@
 {% block page_title %}Payments{% endblock %}
 
 {% block header_actions %}
-<a href="/billing/payments/add/" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+<a href="/billing/payments/add/"
+  class="action-btn inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+  style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.35)">
   + Record Payment
 </a>
 {% endblock %}
 
 {% block content %}
-<!-- Filters -->
-<form method="get" class="flex flex-wrap gap-3 mb-6">
-  <select name="member" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-    <option value="">All Members</option>
-    {% for m in members %}
-    <option value="{{ m.pk }}" {% if selected_member == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.full_name }}</option>
-    {% endfor %}
-  </select>
-  <input type="date" name="start" value="{{ start|default:'' }}"
-    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-  <input type="date" name="end" value="{{ end|default:'' }}"
-    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-  <button type="submit" class="px-4 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-900 transition-colors">Filter</button>
-  <a href="/billing/payments/" class="px-4 py-2 text-gray-600 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">Clear</a>
+<!-- Filter bar -->
+<form method="get" class="glass-card rounded-2xl p-4 mb-5">
+  <div class="flex flex-wrap gap-3 items-end">
+
+    <div class="flex-1 min-w-40">
+      <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">Member</label>
+      <select name="member" class="glow-input w-full px-3 py-2.5 rounded-xl text-sm">
+        <option value="">All Members</option>
+        {% for m in members %}
+        <option value="{{ m.pk }}" {% if selected_member == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
+        <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        From Date
+      </label>
+      <input type="date" name="start" value="{{ start|default:'' }}"
+        placeholder="Pick start date"
+        class="glow-input px-3 py-2.5 rounded-xl text-sm w-40" />
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
+        <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        To Date
+      </label>
+      <input type="date" name="end" value="{{ end|default:'' }}"
+        placeholder="Pick end date"
+        class="glow-input px-3 py-2.5 rounded-xl text-sm w-40" />
+    </div>
+
+    <div class="flex gap-2">
+      <button type="submit"
+        class="action-btn px-4 py-2.5 rounded-xl text-sm text-white font-semibold"
+        style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 12px rgba(99,102,241,0.3)">
+        Filter
+      </button>
+      <a href="/billing/payments/" class="action-btn cancel-btn px-4 py-2.5 rounded-xl text-sm font-medium">Clear</a>
+    </div>
+  </div>
 </form>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-  <table class="w-full text-sm">
-    <thead class="bg-gray-50 border-b border-gray-100">
-      <tr>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Member</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Amount</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Date Paid</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Period</th>
-        <th class="px-5 py-3 text-left font-medium text-gray-600">Method</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-50">
-      {% for payment in page_obj %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-5 py-3 font-medium text-gray-900">
-          <a href="/members/{{ payment.member.pk }}/" class="hover:text-indigo-600">{{ payment.member.full_name }}</a>
-        </td>
-        <td class="px-5 py-3 text-gray-700 font-semibold">${{ payment.amount }}</td>
-        <td class="px-5 py-3 text-gray-700">{{ payment.date_paid }}</td>
-        <td class="px-5 py-3 text-gray-500 text-xs">{{ payment.period_start }} → {{ payment.period_end }}</td>
-        <td class="px-5 py-3">
-          <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ payment.get_payment_method_display }}</span>
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="5" class="px-5 py-10 text-center text-gray-400">No payments found.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<!-- Desktop table -->
+<div class="glass-card rounded-2xl overflow-hidden">
+  <div class="hidden sm:block overflow-x-auto">
+    <table class="w-full text-sm dark-table">
+      <thead>
+        <tr>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Member</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Amount</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Date Paid</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Period</th>
+          <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for payment in page_obj %}
+        <tr>
+          <td class="px-5 py-3.5 font-medium" style="color:var(--text)">
+            <a href="/members/{{ payment.member.pk }}/" class="hover:text-indigo-500 transition-colors">{{ payment.member.full_name }}</a>
+          </td>
+          <td class="px-5 py-3.5 font-bold text-emerald-600">Rs. {{ payment.amount }}</td>
+          <td class="px-5 py-3.5" style="color:var(--text2)">{{ payment.date_paid }}</td>
+          <td class="px-5 py-3.5 text-xs" style="color:var(--text3)">{{ payment.period_start }} → {{ payment.period_end }}</td>
+          <td class="px-5 py-3.5">
+            <span class="px-2 py-0.5 rounded-lg text-xs font-medium bg-indigo-500/10 text-indigo-500">{{ payment.get_payment_method_display }}</span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-5 py-14 text-center" style="color:var(--text3)">No payments found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile card list -->
+  <div class="sm:hidden divide-y" style="border-color:var(--border)">
+    {% for payment in page_obj %}
+    <div class="px-4 py-3">
+      <div class="flex items-center justify-between mb-1">
+        <a href="/members/{{ payment.member.pk }}/" class="font-semibold text-sm hover:text-indigo-500 transition-colors" style="color:var(--text)">{{ payment.member.full_name }}</a>
+        <span class="font-bold text-emerald-600 text-sm">Rs. {{ payment.amount }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-xs" style="color:var(--text3)">{{ payment.date_paid }} · {{ payment.period_start }} → {{ payment.period_end }}</span>
+        <span class="px-2 py-0.5 rounded-lg text-xs font-medium bg-indigo-500/10 text-indigo-500">{{ payment.get_payment_method_display }}</span>
+      </div>
+    </div>
+    {% empty %}
+    <div class="px-4 py-10 text-center text-sm" style="color:var(--text3)">No payments found.</div>
+    {% endfor %}
+  </div>
+
   {% if page_obj.has_other_pages %}
-  <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-600">
+  <div class="px-5 py-4 flex items-center justify-between text-sm" style="border-top:1px solid var(--border);color:var(--text3)">
     <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     <div class="flex gap-2">
       {% if page_obj.has_previous %}
       <a href="?page={{ page_obj.previous_page_number }}&member={{ selected_member|default:'' }}&start={{ start|default:'' }}&end={{ end|default:'' }}"
-        class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">← Prev</a>
+        class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">← Prev</a>
       {% endif %}
       {% if page_obj.has_next %}
       <a href="?page={{ page_obj.next_page_number }}&member={{ selected_member|default:'' }}&start={{ start|default:'' }}&end={{ end|default:'' }}"
-        class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Next →</a>
+        class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">Next →</a>
       {% endif %}
     </div>
   </div>
   {% endif %}
 </div>
+
+<script>
+// Fix select option colors in dark mode
+function fixSelectColors() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.querySelectorAll('select').forEach(sel => {
+    sel.style.colorScheme = isDark ? 'dark' : 'light';
+  });
+}
+fixSelectColors();
+const _origToggle = window.toggleTheme;
+window.toggleTheme = function() { _origToggle && _origToggle(); setTimeout(fixSelectColors, 50); };
+</script>
 {% endblock %}

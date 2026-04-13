@@ -1,17 +1,277 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-50">
+<html lang="en" class="h-full" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}GymApp{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Flatpickr for date inputs -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <style>
-    .sidebar-link.active { background-color: rgb(67 56 202); color: white; }
-    .toast { animation: slideIn 0.3s ease, fadeOut 0.5s ease 3.5s forwards; }
-    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+
+    /* ── DARK THEME (default) ── */
+    [data-theme="dark"] {
+      --bg:           #0f0f13;
+      --bg2:          #13131a;
+      --surface:      rgba(255,255,255,0.03);
+      --surface2:     rgba(255,255,255,0.06);
+      --border:       rgba(255,255,255,0.07);
+      --border2:      rgba(255,255,255,0.06);
+      --text:         #f1f5f9;
+      --text2:        #94a3b8;
+      --text3:        #475569;
+      --input-bg:     rgba(255,255,255,0.05);
+      --input-border: rgba(255,255,255,0.1);
+      --header-bg:    rgba(15,15,19,0.85);
+      --sidebar-bg:   linear-gradient(180deg,#13131a 0%,#0f0f16 100%);
+      --row-hover:    rgba(99,102,241,0.06);
+      --scrollbar:    rgba(99,102,241,0.3);
+      --card-hover-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      --empty-icon-bg: rgba(255,255,255,0.05);
+      --cancel-bg:    rgba(255,255,255,0.05);
+      --cancel-border: rgba(255,255,255,0.08);
+      --cancel-text:  #94a3b8;
+    }
+
+    /* ── LIGHT THEME ── */
+    [data-theme="light"] {
+      --bg:           #f0f4ff;
+      --bg2:          #ffffff;
+      --surface:      #ffffff;
+      --surface2:     #f8faff;
+      --border:       #dde3f0;
+      --border2:      #e8edf8;
+      --text:         #0f172a;
+      --text2:        #374151;
+      --text3:        #6b7280;
+      --input-bg:     #ffffff;
+      --input-border: #c7d0e8;
+      --header-bg:    rgba(255,255,255,0.92);
+      --sidebar-bg:   linear-gradient(180deg,#ffffff 0%,#f8faff 100%);
+      --sidebar-border: #dde3f0;
+      --sidebar-text: #374151;
+      --sidebar-text-muted: #9ca3af;
+      --sidebar-section-label: #9ca3af;
+      --sidebar-hover: rgba(99,102,241,0.08);
+      --sidebar-logo-text: #0f172a;
+      --row-hover:    #f0f4ff;
+      --scrollbar:    rgba(99,102,241,0.25);
+      --card-hover-shadow: 0 8px 32px rgba(99,102,241,0.12);
+      --empty-icon-bg: #f0f4ff;
+      --cancel-bg:    #f8faff;
+      --cancel-border: #dde3f0;
+      --cancel-text:  #374151;
+    }
+
+    body { background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
+
+    /* Sidebar — uses its own variables so it adapts per theme */
+    #sidebar {
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--sidebar-border, rgba(255,255,255,0.06));
+      transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+    }
+    #sidebar-overlay { transition: opacity 0.3s ease; }
+    .sidebar-link { position: relative; }
+    .sidebar-link.active {
+      background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      color: white !important;
+      box-shadow: 0 4px 15px rgba(99,102,241,0.4);
+    }
+    .sidebar-link.active span { color: white !important; }
+    .sidebar-link.active svg { color: white !important; stroke: white; }
+    .sidebar-link:not(.active):hover { background: var(--sidebar-hover, rgba(255,255,255,0.07)); }
+    .sidebar-link.active::before {
+      content:''; position:absolute; left:0; top:50%; transform:translateY(-50%);
+      width:3px; height:60%; background:#a78bfa; border-radius:0 4px 4px 0;
+    }
+    /* Sidebar text colors per theme */
+    [data-theme="dark"] .sidebar-nav-link  { color: #94a3b8; }
+    [data-theme="dark"] .sidebar-section-label { color: #4b5563; }
+    [data-theme="dark"] .sidebar-logo-text { color: #ffffff; }
+    [data-theme="dark"] .sidebar-username  { color: #ffffff; }
+    [data-theme="dark"] .sidebar-role      { color: #6b7280; }
+    [data-theme="dark"] .sidebar-logout    { color: #6b7280; }
+    [data-theme="dark"] .sidebar-logout:hover { color: #f87171; }
+    [data-theme="dark"] .sidebar-divider   { border-color: rgba(255,255,255,0.06); }
+
+    [data-theme="light"] .sidebar-nav-link  { color: #374151; }
+    [data-theme="light"] .sidebar-section-label { color: #9ca3af; }
+    [data-theme="light"] .sidebar-logo-text { color: #0f172a; }
+    [data-theme="light"] .sidebar-username  { color: #0f172a; }
+    [data-theme="light"] .sidebar-role      { color: #6b7280; }
+    [data-theme="light"] .sidebar-logout    { color: #6b7280; }
+    [data-theme="light"] .sidebar-logout:hover { color: #ef4444; }
+    [data-theme="light"] .sidebar-divider   { border-color: #e5e7eb; }
+    [data-theme="light"] #sidebar { box-shadow: 2px 0 12px rgba(0,0,0,0.06); }
+
+    .main-content { background: var(--bg); }
+    .top-header { background: var(--header-bg); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border2); }
+
+    .glass-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .glass-card:hover { transform: translateY(-2px); border-color: rgba(99,102,241,0.3); box-shadow: var(--card-hover-shadow); }
+
+    .dark-table thead { background: var(--surface2); }
+    .dark-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s ease; }
+    .dark-table tbody tr:hover { background: var(--row-hover); }
+    .dark-table th { color: var(--text3) !important; }
+    .dark-table td { color: var(--text2); }
+
+    /* Light theme specific overrides for hardcoded dark classes */
+    [data-theme="light"] .text-white { color: var(--text) !important; }
+    [data-theme="light"] .text-gray-200 { color: var(--text) !important; }
+    [data-theme="light"] .text-gray-400 { color: var(--text2) !important; }
+    [data-theme="light"] .text-gray-500 { color: var(--text3) !important; }
+    [data-theme="light"] .text-gray-600 { color: var(--text3) !important; }
+    [data-theme="light"] .bg-gray-800 { background: var(--empty-icon-bg) !important; }
+    [data-theme="light"] .bg-gray-900 { background: var(--surface) !important; }
+    [data-theme="light"] .divide-y > * { border-color: var(--border) !important; }
+    [data-theme="light"] .hover\:bg-white\/\[0\.02\]:hover { background: var(--row-hover) !important; }
+    [data-theme="light"] .hover\:bg-white\/\[0\.03\]:hover { background: var(--row-hover) !important; }
+
+    /* Light theme stat card labels */
+    [data-theme="light"] .stat-label { color: var(--text2) !important; }
+
+    /* Light theme form cancel button */
+    .cancel-btn {
+      background: var(--cancel-bg);
+      border: 1px solid var(--cancel-border);
+      color: var(--cancel-text);
+    }
+    .cancel-btn:hover { background: var(--border); }
+
+    /* Light theme card section borders */
+    .section-border { border-color: var(--border) !important; }
+
+    /* Light theme checkin list items */
+    [data-theme="light"] .checkin-item:hover { background: var(--row-hover); }
+
+    /* Light theme empty state icon */
+    .empty-icon-wrap { background: var(--empty-icon-bg); }
+    [data-theme="light"] .empty-icon-wrap svg { color: #6366f1 !important; opacity: 0.4; }
+
+    .toast { animation: slideIn 0.35s cubic-bezier(.4,0,.2,1), fadeOut 0.4s ease 3.6s forwards; }
+    @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
-    #sidebar { transition: transform 0.25s ease; }
-    #sidebar-overlay { transition: opacity 0.25s ease; }
+
+    .page-enter { animation: pageEnter 0.4s cubic-bezier(.4,0,.2,1); }
+    @keyframes pageEnter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    .stat-number { text-shadow: 0 0 20px currentColor; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 99px; }
+
+    .pulse-dot { width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,0.4); animation:pulse-ring 1.5s infinite; }
+    @keyframes pulse-ring { 0%{box-shadow:0 0 0 0 rgba(34,197,94,0.4)} 70%{box-shadow:0 0 0 8px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+
+    .glow-input {
+      background: var(--input-bg) !important;
+      border: 1px solid var(--input-border) !important;
+      color: var(--text) !important;
+      border-radius: 0.75rem;
+      padding: 0.625rem 0.75rem;
+      width: 100%;
+      font-size: 0.875rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .glow-input:focus {
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+      outline: none;
+    }
+    .glow-input::placeholder { color: var(--text3) !important; }
+    /* Light theme: make sure inputs have a clearly visible border */
+    [data-theme="light"] .glow-input {
+      background: #ffffff !important;
+      border-color: #b8c4de !important;
+      color: #0f172a !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    [data-theme="light"] .glow-input:focus {
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+    }
+
+    .gradient-text { background: linear-gradient(135deg,#6366f1,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .logo-glow { filter: drop-shadow(0 0 8px rgba(99,102,241,0.6)); }
+
+    /* Custom select */
+    .custom-select-wrapper { position: relative; }
+    .custom-select-trigger {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; padding: 0.625rem 0.75rem; border-radius: 0.75rem;
+      font-size: 0.875rem; cursor: pointer; user-select: none;
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      color: var(--text); transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .custom-select-trigger:focus, .custom-select-trigger.open {
+      border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); outline: none;
+    }
+    .custom-select-trigger svg { flex-shrink: 0; transition: transform 0.2s; }
+    .custom-select-trigger.open svg { transform: rotate(180deg); }
+    .custom-select-dropdown {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 100;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 0.75rem; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      max-height: 220px; overflow-y: auto;
+      display: none;
+    }
+    .custom-select-dropdown.open { display: block; animation: dropIn 0.15s ease; }
+    @keyframes dropIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    .custom-select-option {
+      padding: 0.6rem 0.875rem; font-size: 0.875rem; cursor: pointer;
+      color: var(--text2); transition: background 0.1s, color 0.1s;
+    }
+    .custom-select-option:hover { background: var(--row-hover); color: var(--text); }
+    .custom-select-option.selected { color: #6366f1; font-weight: 600; background: rgba(99,102,241,0.08); }
+    .custom-select-option.placeholder { color: var(--text3); }
+
+    /* Theme toggle */
+    .theme-toggle { cursor: pointer; transition: transform 0.3s ease; }
+    .theme-toggle:hover { transform: rotate(20deg) scale(1.1); }
+
+    /* Action button hover lift */
+    .action-btn { transition: all 0.15s ease; }
+    .action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    @media (max-width: 640px) {
+      .mobile-stack thead { display: none; }
+      .mobile-stack tbody tr { display: block; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+      .mobile-stack tbody td { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 0.8rem; }
+      .mobile-stack tbody td::before { content: attr(data-label); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); flex-shrink: 0; margin-right: 8px; }
+      .mobile-stack tbody td.no-label::before { display: none; }
+    }
+
+    /* Flatpickr dark theme override */
+    [data-theme="dark"] .flatpickr-calendar {
+      background: #1a1a24;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      border-radius: 16px;
+    }
+    [data-theme="dark"] .flatpickr-day { color: #cbd5e1; border-radius: 8px; }
+    [data-theme="dark"] .flatpickr-day:hover { background: rgba(99,102,241,0.2); border-color: transparent; }
+    [data-theme="dark"] .flatpickr-day.selected { background: linear-gradient(135deg,#6366f1,#8b5cf6); border-color: transparent; }
+    [data-theme="dark"] .flatpickr-day.today { border-color: #6366f1; }
+    [data-theme="dark"] .flatpickr-months { color: white; }
+    [data-theme="dark"] .flatpickr-month, [data-theme="dark"] .flatpickr-weekday { color: #94a3b8; }
+    [data-theme="dark"] .flatpickr-prev-month svg, [data-theme="dark"] .flatpickr-next-month svg { fill: #94a3b8; }
+    [data-theme="dark"] .flatpickr-current-month input, [data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months { color: white; background: transparent; }
+    [data-theme="dark"] .numInputWrapper span { border-color: rgba(255,255,255,0.1); }
+    [data-theme="dark"] .numInputWrapper span svg { fill: #94a3b8; }
+
+    [data-theme="light"] .flatpickr-calendar { border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,0.12); }
+    [data-theme="light"] .flatpickr-day.selected { background: linear-gradient(135deg,#6366f1,#8b5cf6); border-color: transparent; }
+    [data-theme="light"] .flatpickr-day { border-radius: 8px; }
   </style>
 </head>
 <body class="h-full">
@@ -19,78 +279,88 @@
 {% if user.is_authenticated %}
 <div class="flex h-full min-h-screen">
 
-  <!-- Overlay (mobile) -->
-  <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden opacity-0 lg:hidden" onclick="closeSidebar()"></div>
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/70 z-20 hidden opacity-0 lg:hidden" onclick="closeSidebar()"></div>
 
-  <!-- Sidebar -->
-  <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-30 w-64 bg-indigo-800 text-white flex flex-col min-h-screen -translate-x-full lg:translate-x-0">
-    <div class="px-6 py-5 border-b border-indigo-700 flex items-center justify-between">
-      <span class="text-xl font-bold tracking-wide">💪 GymApp</span>
-      <button onclick="closeSidebar()" class="lg:hidden text-indigo-300 hover:text-white">
+  <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-30 w-64 flex flex-col min-h-screen -translate-x-full lg:translate-x-0">
+    <div class="px-5 py-5 flex items-center justify-between sidebar-divider" style="border-bottom-width:1px;border-bottom-style:solid">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center logo-glow">
+          <span class="text-lg">💪</span>
+        </div>
+        <span class="sidebar-logo-text font-bold text-lg tracking-tight">GymApp</span>
+      </div>
+      <button onclick="closeSidebar()" class="lg:hidden sidebar-role hover:opacity-80 transition-opacity">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
-    <nav class="flex-1 px-3 py-4 space-y-1">
-      <a href="/dashboard/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-indigo-100 hover:bg-indigo-700 transition-colors {% if request.path == '/dashboard/' %}active{% endif %}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-        Dashboard
+
+    <nav class="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+      <p class="sidebar-section-label px-3 text-xs font-semibold uppercase tracking-widest mb-3">Main</p>
+      <a href="/dashboard/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if request.path == '/dashboard/' %}active{% endif %}">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z"/></svg>
+        <span class="text-sm font-medium">Dashboard</span>
       </a>
-      <a href="/members/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-indigo-100 hover:bg-indigo-700 transition-colors {% if '/members' in request.path %}active{% endif %}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        Members
+      <a href="/members/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if '/members' in request.path %}active{% endif %}">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="text-sm font-medium">Members</span>
       </a>
-      <a href="/attendance/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-indigo-100 hover:bg-indigo-700 transition-colors {% if '/attendance' in request.path %}active{% endif %}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-        Attendance
+      <a href="/attendance/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if '/attendance' in request.path %}active{% endif %}">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        <span class="text-sm font-medium">Attendance</span>
       </a>
       {% if user.profile.role == 'admin' %}
-      <!-- Billing section -->
-      <div class="pt-1">
-        <p class="px-3 text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-1">Billing</p>
-        <a href="/billing/plans/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-indigo-100 hover:bg-indigo-700 transition-colors {% if '/billing/plans' in request.path %}active{% endif %}">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          Plans
+      <div class="pt-4">
+        <p class="sidebar-section-label px-3 text-xs font-semibold uppercase tracking-widest mb-3">Billing</p>
+        <a href="/billing/plans/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if '/billing/plans' in request.path %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <span class="text-sm font-medium">Plans</span>
         </a>
-        <a href="/billing/payments/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-indigo-100 hover:bg-indigo-700 transition-colors {% if '/billing/payments' in request.path %}active{% endif %}">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-          Payments
+        <a href="/billing/payments/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if '/billing/payments' in request.path %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          <span class="text-sm font-medium">Payments</span>
         </a>
       </div>
-      <!-- Users -->
-      <a href="/accounts/users/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-indigo-100 hover:bg-indigo-700 transition-colors {% if '/accounts/users' in request.path %}active{% endif %}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-        Users
-      </a>
+      <div class="pt-4">
+        <p class="sidebar-section-label px-3 text-xs font-semibold uppercase tracking-widest mb-3">Admin</p>
+        <a href="/accounts/users/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if '/accounts/users' in request.path %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <span class="text-sm font-medium">Users</span>
+        </a>
+      </div>
       {% endif %}
     </nav>
-    <div class="px-3 py-4 border-t border-indigo-700">
-      <div class="flex items-center gap-3 px-3 py-2 text-indigo-200 text-sm">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-        <span>{{ user.username }} <span class="text-indigo-400">({{ user.profile.role }})</span></span>
+
+    <div class="px-3 py-4 sidebar-divider" style="border-top-width:1px;border-top-style:solid">
+      <div class="flex items-center gap-3 px-3 py-2 rounded-xl mb-1">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{{ user.username|first|upper }}</div>
+        <div class="min-w-0">
+          <p class="sidebar-username text-sm font-medium truncate">{{ user.username }}</p>
+          <p class="sidebar-role text-xs capitalize">{{ user.profile.role }}</p>
+        </div>
+        <div class="pulse-dot ml-auto flex-shrink-0"></div>
       </div>
-      <a href="/accounts/logout/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-indigo-100 hover:bg-indigo-700 transition-colors text-sm">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-        Logout
+      <a href="/accounts/logout/" class="sidebar-link sidebar-logout flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        <span class="font-medium">Logout</span>
       </a>
     </div>
   </aside>
 
-  <!-- Main content -->
-  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-    <!-- Top navbar -->
-    <header class="bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center justify-between gap-4">
-      <!-- Hamburger (mobile only) -->
-      <button onclick="openSidebar()" class="lg:hidden text-gray-500 hover:text-gray-700 flex-shrink-0">
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0 main-content">
+    <header class="top-header px-4 lg:px-6 py-4 flex items-center justify-between gap-4 sticky top-0 z-10">
+      <button onclick="openSidebar()" class="lg:hidden text-gray-500 hover:text-white transition-colors flex-shrink-0">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-      <h1 class="text-lg font-semibold text-gray-800 truncate">{% block page_title %}{% endblock %}</h1>
-      <div class="flex items-center gap-2 text-sm text-gray-500 flex-shrink-0">
+      <h1 class="text-base font-semibold truncate" style="color:var(--text)">{% block page_title %}{% endblock %}</h1>
+      <div class="flex items-center gap-2 flex-shrink-0">
         {% block header_actions %}{% endblock %}
+        <!-- Theme toggle -->
+        <button id="theme-toggle" onclick="toggleTheme()" class="theme-toggle w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:scale-110" style="background:var(--surface);border:1px solid var(--border)" title="Toggle theme">
+          <span id="theme-icon" class="text-base">🌙</span>
+        </button>
       </div>
     </header>
-
-    <!-- Page content -->
-    <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+    <main class="flex-1 overflow-y-auto p-4 lg:p-6 page-enter">
       {% block content %}{% endblock %}
     </main>
   </div>
@@ -100,42 +370,152 @@
   {% block auth_content %}{% endblock %}
 {% endif %}
 
-<!-- Toast notifications -->
 <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2">
   {% for message in messages %}
-  <div class="toast flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white text-sm max-w-sm
-    {% if message.tags == 'success' %}bg-green-500
-    {% elif message.tags == 'error' %}bg-red-500
-    {% elif message.tags == 'warning' %}bg-yellow-500
-    {% else %}bg-indigo-600{% endif %}">
+  <div class="toast flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl text-white text-sm max-w-sm border
+    {% if message.tags == 'success' %}bg-green-500/90 border-green-400/30
+    {% elif message.tags == 'error' %}bg-red-500/90 border-red-400/30
+    {% elif message.tags == 'warning' %}bg-amber-500/90 border-amber-400/30
+    {% else %}bg-indigo-600/90 border-indigo-400/30{% endif %}"
+    style="backdrop-filter:blur(12px)">
     <span>{{ message }}</span>
-    <button onclick="this.parentElement.remove()" class="ml-auto text-white/80 hover:text-white">✕</button>
+    <button onclick="this.parentElement.remove()" class="ml-auto text-white/60 hover:text-white transition-colors">✕</button>
   </div>
   {% endfor %}
 </div>
 
 <script>
-  setTimeout(() => {
-    document.querySelectorAll('.toast').forEach(t => t.remove());
-  }, 4000);
+  setTimeout(() => document.querySelectorAll('.toast').forEach(t => t.remove()), 4000);
 
   function openSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    sidebar.classList.remove('-translate-x-full');
-    overlay.classList.remove('hidden', 'opacity-0');
-    overlay.classList.add('opacity-100');
+    document.getElementById('sidebar').classList.remove('-translate-x-full');
+    const o = document.getElementById('sidebar-overlay');
+    o.classList.remove('hidden','opacity-0'); o.classList.add('opacity-100');
   }
-
   function closeSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    sidebar.classList.add('-translate-x-full');
-    overlay.classList.remove('opacity-100');
-    overlay.classList.add('opacity-0');
-    setTimeout(() => overlay.classList.add('hidden'), 250);
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+    const o = document.getElementById('sidebar-overlay');
+    o.classList.remove('opacity-100'); o.classList.add('opacity-0');
+    setTimeout(() => o.classList.add('hidden'), 300);
   }
-</script>
 
+  // ── Theme toggle ──
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('theme-icon').textContent = theme === 'dark' ? '🌙' : '☀️';
+    localStorage.setItem('gymapp-theme', theme);
+    if (window._flatpickrs) window._flatpickrs.forEach(fp => fp.redraw && fp.redraw());
+  }
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  }
+  // Load saved theme
+  const savedTheme = localStorage.getItem('gymapp-theme') || 'dark';
+  applyTheme(savedTheme);
+
+  // ── Custom Select — replaces all native <select> with themed dropdown ──
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('select').forEach(sel => {
+      if (sel.dataset.upgraded) return;
+      sel.dataset.upgraded = '1';
+      sel.style.display = 'none';
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'custom-select-wrapper';
+      sel.parentNode.insertBefore(wrapper, sel);
+      wrapper.appendChild(sel);
+
+      const trigger = document.createElement('div');
+      trigger.className = 'custom-select-trigger';
+      trigger.tabIndex = 0;
+      trigger.innerHTML = '<span class="trigger-text"></span><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'custom-select-dropdown';
+
+      function buildOptions() {
+        dropdown.innerHTML = '';
+        Array.from(sel.options).forEach(opt => {
+          const item = document.createElement('div');
+          item.className = 'custom-select-option' + (opt.value === '' ? ' placeholder' : '') + (opt.selected ? ' selected' : '');
+          item.textContent = opt.text;
+          item.dataset.value = opt.value;
+          item.addEventListener('click', () => {
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+            updateTrigger();
+            closeDropdown();
+          });
+          dropdown.appendChild(item);
+        });
+      }
+
+      function updateTrigger() {
+        const selected = sel.options[sel.selectedIndex];
+        const span = trigger.querySelector('.trigger-text');
+        span.textContent = selected ? selected.text : '';
+        span.style.color = (!selected || selected.value === '') ? 'var(--text3)' : 'var(--text)';
+        dropdown.querySelectorAll('.custom-select-option').forEach(item => {
+          item.classList.toggle('selected', item.dataset.value === sel.value);
+        });
+      }
+
+      function openDropdown() {
+        document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
+          if (d !== dropdown) {
+            d.classList.remove('open');
+            const t = d.parentNode.querySelector('.custom-select-trigger');
+            if (t) t.classList.remove('open');
+          }
+        });
+        buildOptions();
+        dropdown.classList.add('open');
+        trigger.classList.add('open');
+      }
+
+      function closeDropdown() {
+        dropdown.classList.remove('open');
+        trigger.classList.remove('open');
+      }
+
+      trigger.addEventListener('click', e => {
+        e.stopPropagation();
+        dropdown.classList.contains('open') ? closeDropdown() : openDropdown();
+      });
+      trigger.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dropdown.classList.contains('open') ? closeDropdown() : openDropdown(); }
+        if (e.key === 'Escape') closeDropdown();
+      });
+
+      wrapper.appendChild(trigger);
+      wrapper.appendChild(dropdown);
+      buildOptions();
+      updateTrigger();
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.custom-select-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        const t = d.parentNode.querySelector('.custom-select-trigger');
+        if (t) t.classList.remove('open');
+      });
+    });
+  });
+
+  // ── Flatpickr — init all date inputs ──
+  window._flatpickrs = [];
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[type="date"]').forEach(el => {
+      el.type = 'text';
+      const fp = flatpickr(el, {
+        dateFormat: 'Y-m-d',
+        allowInput: true,
+        disableMobile: false,
+      });
+      window._flatpickrs.push(fp);
+    });
+  });
+</script>
 </body>
 </html>
