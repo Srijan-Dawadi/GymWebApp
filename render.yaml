@@ -3,7 +3,7 @@ services:
     name: gymapp
     runtime: python
     buildCommand: "./build.sh"
-    startCommand: "gunicorn gymapp.wsgi --log-file -"
+    startCommand: "python manage.py migrate && gunicorn gymapp.wsgi --log-file -"
     envVars:
       - key: SECRET_KEY
         generateValue: true
