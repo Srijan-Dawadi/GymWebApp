@@ -13,7 +13,7 @@ class Command(BaseCommand):
 
         if not password:
             self.stdout.write(self.style.WARNING(
-                'DJANGO_SUPERUSER_PASSWORD not set — skipping superuser creation.'
+                'DJANGO_SUPERUSER_PASSWORD not set — skipping.'
             ))
             return
 
@@ -24,7 +24,12 @@ class Command(BaseCommand):
         user.set_password(password)
         user.save()
 
+        # Always ensure the profile role is admin
+        profile = user.profile
+        profile.role = 'admin'
+        profile.save()
+
         if created:
-            self.stdout.write(self.style.SUCCESS(f'Superuser "{username}" created.'))
+            self.stdout.write(self.style.SUCCESS(f'Superuser "{username}" created with admin role.'))
         else:
-            self.stdout.write(self.style.SUCCESS(f'Superuser "{username}" password updated.'))
+            self.stdout.write(self.style.SUCCESS(f'Superuser "{username}" updated — role set to admin.'))

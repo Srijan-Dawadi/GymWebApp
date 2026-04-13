@@ -6,7 +6,7 @@ from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
-from accounts.mixins import AdminRequiredMixin
+from accounts.mixins import AdminRequiredMixin, StaffRequiredMixin
 from members.models import Member, MembershipPlan
 from .forms import MembershipPlanForm, PaymentForm
 from .models import Payment
@@ -59,7 +59,7 @@ class PlanDeleteView(AdminRequiredMixin, View):
         return redirect('plan_list')
 
 
-class PaymentListView(AdminRequiredMixin, View):
+class PaymentListView(StaffRequiredMixin, View):
     template_name = 'billing/payments.html'
 
     def get(self, request):
@@ -88,7 +88,7 @@ class PaymentListView(AdminRequiredMixin, View):
         })
 
 
-class PaymentCreateView(AdminRequiredMixin, View):
+class PaymentCreateView(StaffRequiredMixin, View):
     template_name = 'billing/payment_form.html'
 
     def get(self, request):
@@ -103,6 +103,6 @@ class PaymentCreateView(AdminRequiredMixin, View):
         form = PaymentForm(request.POST)
         if form.is_valid():
             payment = form.save()
-            messages.success(request, f"Payment of ${payment.amount} recorded for {payment.member.full_name}.")
+            messages.success(request, f"Payment of Rs. {payment.amount} recorded for {payment.member.full_name}.")
             return redirect('payment_list')
         return render(request, self.template_name, {'form': form})
