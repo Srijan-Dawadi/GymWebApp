@@ -12,6 +12,7 @@ urlpatterns = [
     path('members/', include('members.urls')),
     path('billing/', include('billing.urls')),
     path('attendance/', include('attendance.urls')),
+    path('inventory/', include('inventory.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler403 = 'gymapp.views.error_403'

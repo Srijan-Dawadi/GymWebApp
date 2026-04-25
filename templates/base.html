@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}GymApp{% endblock %}</title>
+  <title>{% block title %}5StarFitness{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Flatpickr for date inputs -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -287,7 +287,7 @@
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center logo-glow">
           <span class="text-lg">💪</span>
         </div>
-        <span class="sidebar-logo-text font-bold text-lg tracking-tight">GymApp</span>
+        <span class="sidebar-logo-text font-bold text-lg tracking-tight">5 Star Fitness</span>
       </div>
       <button onclick="closeSidebar()" class="lg:hidden sidebar-role hover:opacity-80 transition-opacity">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -311,6 +311,10 @@
       <a href="/billing/payments/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if '/billing/payments' in request.path %}active{% endif %}">
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
         <span class="text-sm font-medium">Payments</span>
+      </a>
+      <a href="/inventory/" class="sidebar-link sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 {% if '/inventory' in request.path %}active{% endif %}">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        <span class="text-sm font-medium">Inventory</span>
       </a>
       {% if user.profile.role == 'admin' %}
       <div class="pt-4">
