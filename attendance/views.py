@@ -90,12 +90,29 @@ def checkin_api(request):
     except Exception:
         return JsonResponse({'error': 'Invalid image data'}, status=400)
 
-    # Extract embedding
+    # Extract embedding with liveness check
     from face_service import extract_embedding, find_best_match
-    embedding = extract_embedding(image_bytes)
+    try:
+        result = extract_embedding(image_bytes)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    if embedding is None:
-        return JsonResponse({'status': 'no_face', 'message': 'No face detected in frame'}, status=200)
+    status = result.get('status')
+
+    if status == 'no_face':
+        return JsonResponse({'status': 'no_face', 'message': 'No face detected'}, status=200)
+
+    if status == 'spoof':
+        return JsonResponse({
+            'status': 'spoof',
+            'message': result['message'],
+            'liveness_score': result['liveness_score'],
+        }, status=200)
+
+    if status in ('unavailable', 'error'):
+        return JsonResponse({'status': 'error', 'message': result['message']}, status=200)
+
+    embedding = result['embedding']
 
     # Match against stored members
     member_id, score = find_best_match(embedding)

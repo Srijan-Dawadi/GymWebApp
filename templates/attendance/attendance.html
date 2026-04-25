@@ -49,16 +49,30 @@
     <div id="camera-panel" class="hidden">
       <div id="fr-status" class="mb-3 text-sm rounded-xl px-3 py-2.5 border font-medium"
         style="background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.2);color:#818cf8">
-        🎥 Camera ready — scanning every 2 seconds...
+        🎥 Camera ready — scanning every 3 seconds...
       </div>
 
       <div class="relative rounded-xl overflow-hidden mb-3" style="background:#0a0a0f;aspect-ratio:16/9">
         <video id="fr-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
         <canvas id="fr-canvas" class="hidden"></canvas>
-        <!-- Overlay for match result -->
-        <div id="face-overlay" class="absolute inset-0 flex items-end justify-center pb-3 pointer-events-none">
-          <div id="face-label" class="hidden px-4 py-2 rounded-xl text-sm font-bold text-white"
-            style="background:rgba(0,0,0,0.7);backdrop-filter:blur(8px)"></div>
+
+        <!-- Success overlay — full screen green flash -->
+        <div id="success-overlay"
+          class="absolute inset-0 hidden flex-col items-center justify-center gap-3"
+          style="background:rgba(16,185,129,0.93);backdrop-filter:blur(4px)">
+          <div class="text-6xl" style="animation:bounce 0.6s infinite alternate">✅</div>
+          <p id="success-name" class="text-white font-bold text-center px-4" style="font-size:1.4rem"></p>
+          <p class="text-emerald-100 text-sm font-semibold">Attendance Recorded!</p>
+          <p id="success-time" class="text-emerald-200 text-xs mt-1"></p>
+        </div>
+
+        <!-- Spoof overlay -->
+        <div id="spoof-overlay"
+          class="absolute inset-0 hidden flex-col items-center justify-center gap-3"
+          style="background:rgba(239,68,68,0.88);backdrop-filter:blur(4px)">
+          <div class="text-5xl">🚫</div>
+          <p class="text-white text-lg font-bold">Spoof Detected</p>
+          <p class="text-red-100 text-sm">Please look directly at the camera</p>
         </div>
       </div>
 
@@ -99,10 +113,10 @@
       <div class="flex items-center gap-2 mb-3">
         <div class="pulse-dot"></div>
         <h4 class="text-sm font-semibold" style="color:var(--text2)">
-          Today's Check-ins <span class="ml-1 text-xs" style="color:var(--text3)">({{ today_records|length }})</span>
+          Today's Check-ins <span id="checkin-count" class="ml-1 text-xs" style="color:var(--text3)">({{ today_records|length }})</span>
         </h4>
       </div>
-      <div class="space-y-1 max-h-52 overflow-y-auto">
+      <div id="checkin-list" class="space-y-1 max-h-52 overflow-y-auto">
         {% for record in today_records %}
         <div class="flex items-center justify-between py-2 px-3 rounded-lg checkin-item transition-colors">
           <span class="font-medium text-sm" style="color:var(--text)">{{ record.member.full_name }}</span>
@@ -114,7 +128,7 @@
           </div>
         </div>
         {% empty %}
-        <p class="text-sm text-center py-6" style="color:var(--text3)">No check-ins yet today.</p>
+        <p class="empty-checkin text-sm text-center py-6" style="color:var(--text3)">No check-ins yet today.</p>
         {% endfor %}
       </div>
     </div>
@@ -138,7 +152,7 @@
           <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Method</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="history-tbody">
         {% for record in page_obj %}
         <tr>
           <td class="px-5 py-3.5 font-medium" style="color:var(--text)">
@@ -153,14 +167,14 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="px-5 py-14 text-center" style="color:var(--text3)">No attendance records.</td></tr>
+        <tr id="history-empty"><td colspan="4" class="px-5 py-14 text-center" style="color:var(--text3)">No attendance records.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
   <!-- Mobile cards -->
-  <div class="sm:hidden divide-y" style="border-color:var(--border)">
+  <div id="history-mobile" class="sm:hidden divide-y" style="border-color:var(--border)">
     {% for record in page_obj %}
     <div class="px-4 py-3 flex items-center justify-between gap-3">
       <div class="min-w-0">
@@ -172,7 +186,7 @@
       </span>
     </div>
     {% empty %}
-    <div class="px-4 py-10 text-center text-sm" style="color:var(--text3)">No attendance records.</div>
+    <div id="history-mobile-empty" class="px-4 py-10 text-center text-sm" style="color:var(--text3)">No attendance records.</div>
     {% endfor %}
   </div>
 
@@ -193,17 +207,21 @@
 
 <script>
 const CHECKIN_URL = '/attendance/checkin/';
-const SCAN_INTERVAL_MS = 2000;
+const SCAN_INTERVAL_MS = 3000;  // 3 seconds — gives model time to process
 
 let cameraStream = null;
 let scanInterval = null;
-let lastCheckedIn = {}; // member_id → timestamp, 10s cooldown
+let isScanning   = false;
+let lastCheckedIn = {};
 
-const video    = document.getElementById('fr-video');
-const canvas   = document.getElementById('fr-canvas');
-const statusEl = document.getElementById('fr-status');
-const resultEl = document.getElementById('fr-result');
-const labelEl  = document.getElementById('face-label');
+const video      = document.getElementById('fr-video');
+const canvas     = document.getElementById('fr-canvas');
+const statusEl   = document.getElementById('fr-status');
+const resultEl   = document.getElementById('fr-result');
+const successOvl = document.getElementById('success-overlay');
+const spoofOvl   = document.getElementById('spoof-overlay');
+const successName = document.getElementById('success-name');
+const successTime = document.getElementById('success-time');
 
 function setStatus(msg, type = 'info') {
   const styles = {
@@ -224,11 +242,99 @@ function showResult(msg, ok) {
   setTimeout(() => resultEl.classList.add('hidden'), 4000);
 }
 
-function showLabel(msg, ok) {
-  labelEl.textContent = msg;
-  labelEl.style.background = ok ? 'rgba(16,185,129,0.85)' : 'rgba(239,68,68,0.85)';
-  labelEl.classList.remove('hidden');
-  setTimeout(() => labelEl.classList.add('hidden'), 3000);
+function showSuccessOverlay(name) {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  successName.textContent = name;
+  successTime.textContent = timeStr;
+  successOvl.classList.remove('hidden');
+  successOvl.classList.add('flex');
+  // Hide after 3 seconds and resume scanning
+  setTimeout(() => {
+    successOvl.classList.add('hidden');
+    successOvl.classList.remove('flex');
+    setStatus('🎥 Scanning — ready for next member...');
+    // Resume scanning
+    if (cameraStream && !scanInterval) {
+      scanInterval = setInterval(scanFrame, SCAN_INTERVAL_MS);
+    }
+  }, 3000);
+}
+
+function showSpoofOverlay() {
+  spoofOvl.classList.remove('hidden');
+  spoofOvl.classList.add('flex');
+  setTimeout(() => {
+    spoofOvl.classList.add('hidden');
+    spoofOvl.classList.remove('flex');
+  }, 2500);
+}
+
+function addCheckinToList(name, method) {
+  const list = document.getElementById('checkin-list');
+  if (!list) return;
+
+  const now        = new Date();
+  const timeStr    = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const dateStr    = now.toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const methodLabel = method.charAt(0).toUpperCase() + method.slice(1);
+  const methodClass = method === 'face'
+    ? 'bg-emerald-500/15 text-emerald-600'
+    : 'bg-gray-500/10 text-gray-500';
+
+  // ── Today's check-in list ──────────────────────────────────────
+  const empty = list.querySelector('.empty-checkin');
+  if (empty) empty.remove();
+
+  const item = document.createElement('div');
+  item.className = 'flex items-center justify-between py-2 px-3 rounded-lg checkin-item transition-colors';
+  item.innerHTML = `
+    <span class="font-medium text-sm" style="color:var(--text)">${name}</span>
+    <div class="flex items-center gap-2">
+      <span class="text-xs" style="color:var(--text3)">${timeStr}</span>
+      <span class="px-1.5 py-0.5 rounded text-xs ${methodClass}">${methodLabel}</span>
+    </div>`;
+  list.prepend(item);
+
+  // Update count badge
+  const countEl = document.getElementById('checkin-count');
+  if (countEl) {
+    const current = parseInt(countEl.textContent.replace(/\D/g, '')) || 0;
+    countEl.textContent = `(${current + 1})`;
+  }
+
+  // ── History table (desktop) ────────────────────────────────────
+  const tbody = document.getElementById('history-tbody');
+  if (tbody) {
+    const emptyRow = document.getElementById('history-empty');
+    if (emptyRow) emptyRow.remove();
+    const tr = document.createElement('tr');
+    tr.style.animation = 'pageEnter 0.3s ease';
+    tr.innerHTML = `
+      <td class="px-5 py-3.5 font-medium" style="color:var(--text)">${name}</td>
+      <td class="px-5 py-3.5" style="color:var(--text2)">${dateStr}</td>
+      <td class="px-5 py-3.5" style="color:var(--text2)">${timeStr}</td>
+      <td class="px-5 py-3.5">
+        <span class="px-2 py-0.5 rounded-lg text-xs font-medium ${methodClass}">${methodLabel}</span>
+      </td>`;
+    tbody.prepend(tr);
+  }
+
+  // ── History mobile list ────────────────────────────────────────
+  const mobile = document.getElementById('history-mobile');
+  if (mobile) {
+    const emptyMobile = document.getElementById('history-mobile-empty');
+    if (emptyMobile) emptyMobile.remove();
+    const div = document.createElement('div');
+    div.className = 'px-4 py-3 flex items-center justify-between gap-3';
+    div.innerHTML = `
+      <div class="min-w-0">
+        <p class="font-medium text-sm truncate" style="color:var(--text)">${name}</p>
+        <p class="text-xs mt-0.5" style="color:var(--text3)">${dateStr} · ${timeStr}</p>
+      </div>
+      <span class="px-2 py-0.5 rounded-lg text-xs font-medium flex-shrink-0 ${methodClass}">${methodLabel}</span>`;
+    mobile.prepend(div);
+  }
 }
 
 async function startCamera() {
@@ -237,7 +343,7 @@ async function startCamera() {
     video.srcObject = cameraStream;
     document.getElementById('camera-gate').classList.add('hidden');
     document.getElementById('camera-panel').classList.remove('hidden');
-    setStatus('🎥 Camera ready — scanning every 2 seconds...');
+    setStatus('🎥 Camera ready — scanning every 3 seconds...');
     scanInterval = setInterval(scanFrame, SCAN_INTERVAL_MS);
   } catch (err) {
     alert('Camera access denied. Please allow camera permissions.');
@@ -252,57 +358,57 @@ function stopCamera() {
 }
 
 async function scanFrame() {
-  if (!cameraStream) return;
+  if (!cameraStream || isScanning) return;
+  isScanning = true;
 
-  // Capture frame from video to canvas
   canvas.width  = video.videoWidth  || 640;
   canvas.height = video.videoHeight || 480;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  // Convert to base64 JPEG (0.8 quality — good balance of size vs accuracy)
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
   const imageB64 = canvas.toDataURL('image/jpeg', 0.8);
 
   try {
     const res = await fetch(CHECKIN_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
       body: JSON.stringify({ image: imageB64 }),
     });
-
     const data = await res.json();
 
     if (data.status === 'ok') {
       const now = Date.now();
-      const id = data.member_id;
+      const id  = data.member_id;
       if (!lastCheckedIn[id] || now - lastCheckedIn[id] > 10000) {
         lastCheckedIn[id] = now;
-        showResult(`✅ Welcome, ${data.member_name}!`, true);
-        showLabel(`✅ ${data.member_name}`, true);
-        setStatus(`✅ ${data.member_name} checked in`, 'success');
-        setTimeout(() => { setStatus('🎥 Camera ready — scanning every 2 seconds...'); location.reload(); }, 2500);
+        // Pause scanning during overlay
+        clearInterval(scanInterval);
+        scanInterval = null;
+        // Show big success overlay on camera
+        showSuccessOverlay(data.member_name);
+        // Update status bar
+        setStatus(`✅ ${data.member_name} checked in!`, 'success');
+        // Add to today's list without page reload
+        addCheckinToList(data.member_name, 'face');
       }
     } else if (data.status === 'duplicate') {
-      showLabel(`ℹ️ ${data.member_name} already checked in`, false);
+      showResult(`ℹ️ ${data.member_name} already checked in today`, false);
+    } else if (data.status === 'spoof') {
+      showSpoofOverlay();
     } else if (data.status === 'expired') {
       showResult(`⛔ ${data.message}`, false);
-      showLabel(`⛔ Expired — ${data.member_name}`, false);
-      // Cooldown so it doesn't spam every 2s
       lastCheckedIn[data.member_id] = Date.now();
       setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
     } else if (data.status === 'suspended') {
       showResult(`🚫 ${data.message}`, false);
-      showLabel(`🚫 Suspended — ${data.member_name}`, false);
       lastCheckedIn[data.member_id] = Date.now();
       setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
+    } else if (data.status === 'error') {
+      setStatus(`⚠️ ${data.message}`, 'error');
     }
-    // unknown / no_face → keep scanning silently
   } catch (err) {
     console.error('Scan error:', err);
   }
+
+  isScanning = false;
 }
 
 function getCookie(name) {
