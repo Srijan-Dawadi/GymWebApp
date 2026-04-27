@@ -36,7 +36,7 @@ _ANTISPOOF_MODEL = os.path.join(
     os.path.dirname(__file__), 'static', 'antispoof', 'antispoof.onnx'
 )
 
-LIVENESS_THRESHOLD = 0.6
+LIVENESS_THRESHOLD = 0.45
 
 
 def _get_face_app():
@@ -169,7 +169,7 @@ def extract_embedding(image_bytes: bytes) -> dict:
         if not is_real:
             return {'status': 'spoof', 'embedding': None,
                     'liveness_score': round(score, 3),
-                    'message': 'Liveness check failed — please look directly at the camera.'}
+                    'message': 'Liveness check failed — ensure good lighting and move closer to the camera.'}
         return {'status': 'ok', 'embedding': face.normed_embedding.tolist(),
                 'liveness_score': round(score, 3), 'message': 'OK'}
     except Exception as e:

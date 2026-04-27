@@ -72,7 +72,7 @@
           style="background:rgba(239,68,68,0.88);backdrop-filter:blur(4px)">
           <div class="text-5xl">🚫</div>
           <p class="text-white text-lg font-bold">Spoof Detected</p>
-          <p class="text-red-100 text-sm">Please look directly at the camera</p>
+          <p class="text-red-100 text-sm">Ensure good lighting and move closer to the camera</p>
         </div>
       </div>
 
@@ -364,7 +364,7 @@ async function scanFrame() {
   canvas.width  = video.videoWidth  || 640;
   canvas.height = video.videoHeight || 480;
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-  const imageB64 = canvas.toDataURL('image/jpeg', 0.8);
+  const imageB64 = canvas.toDataURL('image/jpeg', 0.95);
 
   try {
     const res = await fetch(CHECKIN_URL, {
@@ -393,6 +393,7 @@ async function scanFrame() {
       showResult(`ℹ️ ${data.member_name} already checked in today`, false);
     } else if (data.status === 'spoof') {
       showSpoofOverlay();
+      showResult('🚫 Liveness check failed — ensure good lighting and move closer.', false);
     } else if (data.status === 'expired') {
       showResult(`⛔ ${data.message}`, false);
       lastCheckedIn[data.member_id] = Date.now();
