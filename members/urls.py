@@ -9,4 +9,5 @@ urlpatterns = [
     path('<int:pk>/delete/', views.MemberDeleteView.as_view(), name='member_delete'),
     path('<int:pk>/toggle-suspend/', views.MemberToggleSuspendView.as_view(), name='member_toggle_suspend'),
     path('search/', views.member_search_api, name='member_search_api'),
+    path('enroll-frame/', views.enroll_frame_api, name='enroll_frame_api'),
 ]

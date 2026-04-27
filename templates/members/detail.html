@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="flex justify-between items-center">
         <span style="color:var(--text3)">Face ID</span>
         <span class="font-medium text-xs px-2 py-1 rounded-lg {% if member.face_descriptor %}bg-emerald-500/15 text-emerald-600{% else %}bg-red-500/15 text-red-600{% endif %}">
-          {% if member.face_descriptor %}✓ Registered{% else %}✗ Missing{% endif %}
+          {% if member.face_descriptor %}✓ {{ member.face_descriptor|length }} angles{% else %}✗ Not enrolled{% endif %}
         </span>
       </div>
     </div>

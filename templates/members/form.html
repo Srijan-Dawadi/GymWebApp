@@ -3,98 +3,395 @@
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-lg mx-auto glass-card rounded-2xl p-6">
+<div class="max-w-2xl mx-auto space-y-5">
 
-  <div class="mb-5 rounded-xl px-4 py-3 flex items-start gap-3"
-    style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
-    <svg class="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    <p class="text-sm" style="color:var(--text2)">
-      Upload a clear, front-facing photo of the member.
-      The system will automatically extract their face data for attendance recognition.
-    </p>
+  <!-- Member details form -->
+  <div class="glass-card rounded-2xl p-6">
+    <h3 class="font-semibold mb-4 flex items-center gap-2" style="color:var(--text)">
+      <span class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-500 text-sm flex-shrink-0">👤</span>
+      Member Details
+    </h3>
+
+    <form method="post" enctype="multipart/form-data" id="member-form" class="space-y-4">
+      {% csrf_token %}
+      <!-- Hidden: first captured frame as photo -->
+      <input type="file" name="photo" id="photo-hidden" accept="image/*" class="hidden" />
+      <!-- Hidden: all collected embeddings as JSON -->
+      <input type="hidden" name="face_embeddings" id="face-embeddings-input" />
+
+      {% if form.non_field_errors %}
+      <div class="text-sm rounded-xl px-3 py-2.5 border"
+        style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626">
+        {{ form.non_field_errors }}
+      </div>
+      {% endif %}
+
+      {% for field in form.visible_fields %}
+      {% if field.html_name != 'photo' %}
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
+          {{ field.label }}{% if field.field.required %} <span style="color:#ef4444">*</span>{% endif %}
+        </label>
+        {% if field.field.widget.input_type == 'select' %}
+        <select name="{{ field.html_name }}" class="w-full glow-input">
+          {% for val, label in field.field.choices %}
+          <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
+          value="{{ field.value|default:'' }}"
+          class="w-full glow-input {% if field.errors %}!border-red-400{% endif %}" />
+        {% endif %}
+        {% if field.errors %}
+        <p class="text-xs mt-1" style="color:#ef4444">{{ field.errors|join:", " }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" id="submit-btn" disabled
+          class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+          Save Member
+        </button>
+        <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
+          Cancel
+        </a>
+      </div>
+    </form>
   </div>
 
-  <form method="post" enctype="multipart/form-data" id="member-form" class="space-y-4">
-    {% csrf_token %}
+  <!-- Face Enrollment Panel -->
+  <div class="glass-card rounded-2xl p-6">
+    <h3 class="font-semibold mb-1 flex items-center gap-2" style="color:var(--text)">
+      <span class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-500 text-sm flex-shrink-0">📷</span>
+      Face Enrollment
+      <span id="enrollment-badge" class="ml-auto text-xs px-2 py-1 rounded-lg font-semibold"
+        style="background:rgba(245,158,11,0.1);color:#d97706">0 / 5 captured</span>
+    </h3>
+    <p class="text-xs mb-4 ml-9" style="color:var(--text3)">
+      Capture 5 angles for accurate recognition. Follow the on-screen prompts.
+    </p>
 
-    {% if form.non_field_errors %}
-    <div class="text-sm rounded-xl px-3 py-2.5 border"
-      style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626">
-      {{ form.non_field_errors }}
+    {% if member and member.face_descriptor %}
+    <div class="mb-4 rounded-xl px-3 py-2.5 flex items-center gap-2"
+      style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+      <span style="color:#059669" class="text-sm">✓ Face already enrolled ({{ member.face_descriptor|length }} angles). Re-enroll below to update.</span>
     </div>
     {% endif %}
 
-    {% for field in form.visible_fields %}
-    <div>
-      <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
-        {{ field.label }}{% if field.field.required %} <span style="color:#ef4444">*</span>{% endif %}
-      </label>
+    <!-- Camera gate -->
+    <div id="enroll-gate">
+      <button type="button" onclick="startEnrollment()"
+        class="action-btn w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+        style="background:rgba(99,102,241,0.1);border:2px dashed rgba(99,102,241,0.3);color:#818cf8">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+        </svg>
+        Start Face Enrollment
+      </button>
+    </div>
 
-      {% if field.field.widget.input_type == 'select' %}
-      <select name="{{ field.html_name }}" class="w-full glow-input">
-        {% for val, label in field.field.choices %}
-        <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
+    <!-- Enrollment panel -->
+    <div id="enroll-panel" class="hidden space-y-4">
 
-      {% elif field.field.widget.input_type == 'file' %}
-      <!-- Photo upload with preview -->
-      <div class="space-y-3">
-        {% if member and member.photo %}
-        <div class="flex items-center gap-3 p-3 rounded-xl" style="background:var(--surface2);border:1px solid var(--border)">
-          <img src="{{ member.photo.url }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-indigo-500/20" alt="Current photo" />
-          <div>
-            <p class="text-xs font-medium" style="color:var(--text)">Current photo</p>
-            <p class="text-xs" style="color:var(--text3)">Upload a new one to replace it</p>
+      <!-- Pose progress dots -->
+      <div class="flex items-center justify-center gap-3">
+        <div id="dot-0" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">1</div>
+        <div id="dot-1" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">2</div>
+        <div id="dot-2" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">3</div>
+        <div id="dot-3" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">4</div>
+        <div id="dot-4" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">5</div>
+      </div>
+
+      <!-- Pose instruction -->
+      <div id="pose-instruction" class="text-center py-3 rounded-xl font-semibold text-sm"
+        style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);color:#818cf8">
+        📷 Look straight at the camera
+      </div>
+
+      <!-- Video -->
+      <div class="relative rounded-xl overflow-hidden" style="background:#0a0a0f;aspect-ratio:4/3">
+        <video id="enroll-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+        <canvas id="enroll-canvas" class="hidden"></canvas>
+
+        <!-- Flash overlay on capture -->
+        <div id="enroll-flash" class="absolute inset-0 hidden items-center justify-center pointer-events-none"
+          style="background:rgba(99,102,241,0.7)">
+          <div class="text-white text-center">
+            <div class="text-4xl mb-1">✅</div>
+            <p id="flash-text" class="font-bold text-sm"></p>
           </div>
-        </div>
-        {% endif %}
-        <input type="file" name="{{ field.html_name }}" accept="image/*" id="photo-input"
-          class="w-full glow-input file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/15 file:text-indigo-500 cursor-pointer" />
-        <!-- Preview of newly selected photo -->
-        <div id="photo-preview" class="hidden">
-          <img id="preview-img" class="w-20 h-20 rounded-xl object-cover ring-2 ring-indigo-500/30" alt="Preview" />
         </div>
       </div>
 
-      {% else %}
-      <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
-        value="{{ field.value|default:'' }}"
-        class="w-full glow-input {% if field.errors %}!border-red-400{% endif %}" />
-      {% endif %}
+      <!-- Status -->
+      <div id="enroll-status" class="text-xs rounded-lg px-3 py-2 font-medium"
+        style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#d97706">
+        ⏳ Starting camera...
+      </div>
 
-      {% if field.errors %}
-      <p class="text-xs mt-1" style="color:#ef4444">{{ field.errors|join:", " }}</p>
-      {% endif %}
-    </div>
-    {% endfor %}
+      <!-- Captured thumbnails -->
+      <div id="thumbnails" class="flex gap-2 flex-wrap"></div>
 
-    <div class="flex gap-3 pt-2">
-      <button type="submit" id="submit-btn"
-        class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm"
-        style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
-        Save Member
-      </button>
-      <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
-        Cancel
-      </a>
+      <!-- Buttons -->
+      <div class="flex gap-2">
+        <button type="button" id="capture-pose-btn" onclick="capturePose()" disabled
+          class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+          📸 Capture
+        </button>
+        <button type="button" onclick="resetEnrollment()"
+          class="action-btn px-4 py-2.5 rounded-xl text-sm font-medium"
+          style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#d97706">
+          🔄 Reset
+        </button>
+        <button type="button" onclick="stopEnrollment()"
+          class="action-btn px-4 py-2.5 rounded-xl text-sm font-medium"
+          style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
+          ✕
+        </button>
+      </div>
     </div>
-  </form>
+
+    <!-- Enrollment complete banner -->
+    <div id="enroll-complete" class="hidden mt-4 rounded-xl px-4 py-3 flex items-center gap-3"
+      style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+      <div class="text-2xl">🎉</div>
+      <div>
+        <p class="text-sm font-semibold" style="color:#059669">Face enrollment complete!</p>
+        <p class="text-xs mt-0.5" style="color:var(--text3)">5 angles captured. Fill in the details above and click Save Member.</p>
+      </div>
+      <button type="button" onclick="resetEnrollment()" class="ml-auto text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+        style="color:#059669;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.08)">Re-enroll</button>
+    </div>
+
+    <!-- Validation error -->
+    <div id="enroll-error" class="hidden mt-3 text-xs rounded-lg px-3 py-2"
+      style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
+      ❌ Please complete face enrollment before saving.
+    </div>
+  </div>
+
 </div>
 
 <script>
-// Show preview when a photo is selected
-document.getElementById('photo-input').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('preview-img').src = e.target.result;
-    document.getElementById('photo-preview').classList.remove('hidden');
+const ENROLL_URL = '/members/enroll-frame/';
+const POSES = [
+  { label: '📷 Look straight at the camera',     emoji: '😐' },
+  { label: '↙️ Turn slightly to the left',        emoji: '😶' },
+  { label: '↗️ Turn slightly to the right',       emoji: '😶' },
+  { label: '⬆️ Tilt your head slightly up',       emoji: '🙂' },
+  { label: '⬇️ Tilt your head slightly down',     emoji: '🙂' },
+];
+
+let camStream      = null;
+let enrolledEmbeds = [];   // collected embeddings
+let firstFrameBlob = null; // first capture used as photo
+let currentPose    = 0;
+const isEdit = {% if member %}true{% else %}false{% endif %};
+
+function setEnrollStatus(msg, type = 'info') {
+  const el = document.getElementById('enroll-status');
+  const styles = {
+    info:    'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#d97706',
+    success: 'background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:#059669',
+    error:   'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626',
+    info2:   'background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);color:#818cf8',
   };
-  reader.readAsDataURL(file);
+  el.style.cssText = styles[type] || styles.info;
+  el.textContent = msg;
+}
+
+function updatePoseDots() {
+  POSES.forEach((_, i) => {
+    const dot = document.getElementById(`dot-${i}`);
+    if (i < enrolledEmbeds.length) {
+      dot.style.cssText = 'background:linear-gradient(135deg,#10b981,#059669);border:2px solid #10b981;color:white;';
+      dot.textContent = '✓';
+    } else if (i === currentPose) {
+      dot.style.cssText = 'background:linear-gradient(135deg,#6366f1,#8b5cf6);border:2px solid #6366f1;color:white;box-shadow:0 0 12px rgba(99,102,241,0.4)';
+      dot.textContent = i + 1;
+    } else {
+      dot.style.cssText = 'background:var(--surface2);border:2px solid var(--border);color:var(--text3)';
+      dot.textContent = i + 1;
+    }
+  });
+  document.getElementById('enrollment-badge').textContent = `${enrolledEmbeds.length} / 5 captured`;
+  if (enrolledEmbeds.length === 5) {
+    document.getElementById('enrollment-badge').style.cssText = 'background:rgba(16,185,129,0.1);color:#059669';
+  }
+}
+
+function updatePoseInstruction() {
+  const el = document.getElementById('pose-instruction');
+  if (currentPose < POSES.length) {
+    el.textContent = POSES[currentPose].label;
+  }
+}
+
+async function startEnrollment() {
+  document.getElementById('enroll-gate').classList.add('hidden');
+  document.getElementById('enroll-panel').classList.remove('hidden');
+  document.getElementById('enroll-complete').classList.add('hidden');
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+    document.getElementById('enroll-video').srcObject = camStream;
+    setEnrollStatus('✅ Camera ready — ' + POSES[0].label.toLowerCase(), 'info2');
+    document.getElementById('capture-pose-btn').disabled = false;
+    updatePoseDots();
+    updatePoseInstruction();
+  } catch (err) {
+    setEnrollStatus('❌ Camera access denied. Please allow camera permissions.', 'error');
+  }
+}
+
+function stopEnrollment() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  document.getElementById('enroll-panel').classList.add('hidden');
+  document.getElementById('enroll-gate').classList.remove('hidden');
+}
+
+function resetEnrollment() {
+  enrolledEmbeds = [];
+  firstFrameBlob = null;
+  currentPose    = 0;
+  document.getElementById('thumbnails').innerHTML = '';
+  document.getElementById('enroll-complete').classList.add('hidden');
+  document.getElementById('enroll-error').classList.add('hidden');
+  document.getElementById('face-embeddings-input').value = '';
+  document.getElementById('photo-hidden').value = '';
+  document.getElementById('submit-btn').disabled = true;
+  updatePoseDots();
+  updatePoseInstruction();
+  if (!camStream) {
+    startEnrollment();
+  } else {
+    setEnrollStatus('✅ Camera ready — ' + POSES[0].label.toLowerCase(), 'info2');
+    document.getElementById('capture-pose-btn').disabled = false;
+  }
+}
+
+async function capturePose() {
+  const video  = document.getElementById('enroll-video');
+  const canvas = document.getElementById('enroll-canvas');
+  if (!camStream || !video.videoWidth) {
+    setEnrollStatus('❌ Camera not ready yet.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('capture-pose-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Processing...';
+  setEnrollStatus('⏳ Detecting face and extracting embedding...', 'info');
+
+  // Draw frame
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const imageB64 = canvas.toDataURL('image/jpeg', 0.9);
+
+  // Save first frame as photo
+  if (currentPose === 0) {
+    canvas.toBlob(blob => {
+      firstFrameBlob = blob;
+      const file = new File([blob], 'enrollment_photo.jpg', { type: 'image/jpeg' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      document.getElementById('photo-hidden').files = dt.files;
+    }, 'image/jpeg', 0.9);
+  }
+
+  try {
+    const res = await fetch(ENROLL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ image: imageB64 }),
+    });
+    const data = await res.json();
+
+    if (data.status === 'ok') {
+      enrolledEmbeds.push(data.embedding);
+
+      // Flash overlay
+      const flash = document.getElementById('enroll-flash');
+      document.getElementById('flash-text').textContent = POSES[currentPose].label;
+      flash.classList.remove('hidden');
+      flash.classList.add('flex');
+      setTimeout(() => { flash.classList.add('hidden'); flash.classList.remove('flex'); }, 700);
+
+      // Add thumbnail
+      const thumb = document.createElement('div');
+      thumb.className = 'relative';
+      thumb.innerHTML = `
+        <img src="${imageB64}" class="w-14 h-14 rounded-lg object-cover ring-2 ring-emerald-500/40" />
+        <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">${enrolledEmbeds.length}</span>`;
+      document.getElementById('thumbnails').appendChild(thumb);
+
+      currentPose++;
+      updatePoseDots();
+
+      if (currentPose < POSES.length) {
+        updatePoseInstruction();
+        setEnrollStatus('✅ Captured! Now: ' + POSES[currentPose].label, 'success');
+        btn.disabled = false;
+        btn.textContent = '📸 Capture';
+      } else {
+        // All 5 done
+        document.getElementById('face-embeddings-input').value = JSON.stringify(enrolledEmbeds);
+        document.getElementById('submit-btn').disabled = false;
+        document.getElementById('enroll-error').classList.add('hidden');
+        setEnrollStatus('🎉 All 5 angles captured! You can now save the member.', 'success');
+        document.getElementById('enroll-complete').classList.remove('hidden');
+        document.getElementById('capture-pose-btn').disabled = true;
+        // Stop camera
+        if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+      }
+    } else if (data.status === 'no_face') {
+      setEnrollStatus('⚠️ No face detected. Make sure the member\'s face is clearly visible.', 'error');
+      btn.disabled = false;
+      btn.textContent = '📸 Capture';
+    } else if (data.status === 'spoof') {
+      setEnrollStatus('🚫 Liveness check failed. Please use a real person, not a photo.', 'error');
+      btn.disabled = false;
+      btn.textContent = '📸 Capture';
+    } else {
+      setEnrollStatus(`❌ ${data.message || 'Error processing frame.'}`, 'error');
+      btn.disabled = false;
+      btn.textContent = '📸 Capture';
+    }
+  } catch (err) {
+    setEnrollStatus('❌ Network error. Please try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = '📸 Capture';
+  }
+}
+
+// Validate on submit
+document.getElementById('member-form').addEventListener('submit', function(e) {
+  const embeds = document.getElementById('face-embeddings-input').value;
+  const hasEmbeds = embeds && JSON.parse(embeds).length > 0;
+  const hasExisting = isEdit && {% if member and member.face_descriptor %}true{% else %}false{% endif %};
+
+  if (!hasEmbeds && !hasExisting) {
+    e.preventDefault();
+    document.getElementById('enroll-error').classList.remove('hidden');
+    document.getElementById('enroll-error').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 });
+
+function getCookie(name) {
+  const v = `; ${document.cookie}`;
+  const p = v.split(`; ${name}=`);
+  if (p.length === 2) return p.pop().split(';').shift();
+  return '';
+}
+
+// On edit with existing enrollment, enable submit immediately
+{% if member and member.face_descriptor %}
+document.getElementById('submit-btn').disabled = false;
+{% endif %}
 </script>
 {% endblock %}

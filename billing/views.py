@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import ProtectedError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
@@ -106,3 +107,25 @@ class PaymentCreateView(StaffRequiredMixin, View):
             messages.success(request, f"Payment of Rs. {payment.amount} recorded for {payment.member.full_name}.")
             return redirect('payment_list')
         return render(request, self.template_name, {'form': form})
+
+
+class MemberPlanInfoView(StaffRequiredMixin, View):
+    """Returns a member's plan details as JSON for auto-filling the payment form."""
+
+    def get(self, request, pk):
+        member = get_object_or_404(Member, pk=pk)
+        plan = member.membership_plan
+        today = date.today()
+
+        # Period start = today
+        # Period end = today + plan duration
+        period_end = today + timedelta(days=plan.duration_days)
+
+        return JsonResponse({
+            'plan_name':     plan.name,
+            'plan_price':    str(plan.price),
+            'duration_days': plan.duration_days,
+            'period_start':  today.strftime('%Y-%m-%d'),
+            'period_end':    period_end.strftime('%Y-%m-%d'),
+            'date_paid':     today.strftime('%Y-%m-%d'),
+        })

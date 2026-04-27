@@ -12,7 +12,7 @@ class MemberForm(forms.ModelForm):
 
     def clean_photo(self):
         photo = self.cleaned_data.get('photo')
-        # On create, photo is required for face registration
+        # On create (no existing instance), a photo is required
         if not photo and not self.instance.pk:
-            raise forms.ValidationError("A photo is required to register the member's face.")
+            raise forms.ValidationError("Please capture a photo of the member.")
         return photo

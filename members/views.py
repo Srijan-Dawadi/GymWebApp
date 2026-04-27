@@ -1,6 +1,5 @@
 import json
 from datetime import date
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -8,7 +7,6 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
-
 from accounts.mixins import AdminRequiredMixin, StaffRequiredMixin
 from .forms import MemberForm
 from .models import Member
@@ -52,10 +50,10 @@ def _extract_and_save_embedding(member):
     try:
         with open(member.photo.path, 'rb') as f:
             image_bytes = f.read()
-        embedding = extract_embedding(image_bytes)
-        if embedding:
-            member.face_descriptor = embedding
-            Member.objects.filter(pk=member.pk).update(face_descriptor=embedding)
+        result = extract_embedding(image_bytes)
+        # extract_embedding returns a dict with 'status' and 'embedding'
+        if result and result.get('status') == 'ok' and result.get('embedding'):
+            Member.objects.filter(pk=member.pk).update(face_descriptor=result['embedding'])
             return True
         return False
     except Exception:
@@ -73,11 +71,22 @@ class MemberCreateView(StaffRequiredMixin, View):
         form = MemberForm(request.POST, request.FILES)
         if form.is_valid():
             member = form.save()
-            # Extract face embedding from uploaded photo
+            # Check for multi-angle embeddings submitted as JSON
+            embeddings_json = request.POST.get('face_embeddings', '')
+            if embeddings_json:
+                try:
+                    embeddings = json.loads(embeddings_json)
+                    if embeddings and isinstance(embeddings, list) and len(embeddings) > 0:
+                        Member.objects.filter(pk=member.pk).update(face_descriptor=embeddings)
+                        messages.success(request, f"Member '{member.full_name}' registered with {len(embeddings)}-angle face recognition.")
+                        return redirect('member_detail', pk=member.pk)
+                except (json.JSONDecodeError, Exception):
+                    pass
+            # Fallback: extract from uploaded photo
             if member.photo:
                 ok = _extract_and_save_embedding(member)
                 if not ok:
-                    messages.warning(request, f"Member '{member.full_name}' saved but no face detected in the photo. Please re-upload a clear face photo.")
+                    messages.warning(request, f"Member '{member.full_name}' saved but no face detected in the photo.")
                 else:
                     messages.success(request, f"Member '{member.full_name}' registered with face recognition.")
             else:
@@ -99,7 +108,18 @@ class MemberEditView(StaffRequiredMixin, View):
         form = MemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
             member = form.save()
-            # Re-extract embedding only if a new photo was uploaded
+            # Check for new multi-angle embeddings
+            embeddings_json = request.POST.get('face_embeddings', '')
+            if embeddings_json:
+                try:
+                    embeddings = json.loads(embeddings_json)
+                    if embeddings and isinstance(embeddings, list) and len(embeddings) > 0:
+                        Member.objects.filter(pk=member.pk).update(face_descriptor=embeddings)
+                        messages.success(request, f"Member updated with {len(embeddings)}-angle face recognition.")
+                        return redirect('member_detail', pk=member.pk)
+                except (json.JSONDecodeError, Exception):
+                    pass
+            # Fallback: re-extract from new photo if uploaded
             if request.FILES.get('photo'):
                 ok = _extract_and_save_embedding(member)
                 if not ok:
@@ -142,6 +162,31 @@ class MemberToggleSuspendView(AdminRequiredMixin, View):
             Member.objects.filter(pk=pk).update(status='suspended')
             messages.warning(request, f"{member.full_name} has been suspended.")
         return redirect('member_detail', pk=pk)
+
+
+@login_required
+def enroll_frame_api(request):
+    """
+    Multi-angle enrollment — process a single frame during registration.
+    Accepts: POST JSON { "image": "<base64 JPEG>" }
+    Returns: { "status": "ok", "embedding": [...] } or error dict.
+    Does NOT save to DB — the browser collects all embeddings and submits with the form.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    try:
+        import base64
+        body = json.loads(request.body)
+        image_b64 = body.get('image', '')
+        if ',' in image_b64:
+            image_b64 = image_b64.split(',', 1)[1]
+        image_bytes = base64.b64decode(image_b64)
+    except Exception:
+        return JsonResponse({'status': 'error', 'message': 'Invalid image data'}, status=400)
+
+    from face_service import extract_embedding
+    result = extract_embedding(image_bytes)
+    return JsonResponse(result)
 
 
 @login_required

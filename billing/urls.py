@@ -7,4 +7,5 @@ urlpatterns = [
     path('plans/<int:pk>/delete/', views.PlanDeleteView.as_view(), name='plan_delete'),
     path('payments/', views.PaymentListView.as_view(), name='payment_list'),
     path('payments/add/', views.PaymentCreateView.as_view(), name='payment_add'),
+    path('member-plan/<int:pk>/', views.MemberPlanInfoView.as_view(), name='member_plan_info'),
 ]

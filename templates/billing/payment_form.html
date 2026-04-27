@@ -4,30 +4,55 @@
 
 {% block content %}
 <div class="max-w-lg mx-auto glass-card rounded-2xl p-6">
-  <form method="post" class="space-y-4">
+
+  <!-- Auto-fill info banner — shown after member is selected -->
+  <div id="autofill-banner" class="hidden mb-4 rounded-xl px-4 py-3 flex items-center gap-3"
+    style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
+    <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+    </svg>
+    <p id="autofill-text" class="text-xs" style="color:#818cf8"></p>
+  </div>
+
+  <form method="post" id="payment-form" class="space-y-4">
     {% csrf_token %}
     {% for field in form %}
     <div>
       <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
         {{ field.label }}{% if field.field.required %} <span style="color:#ef4444">*</span>{% endif %}
       </label>
-      {% if field.field.widget.input_type == 'select' %}
+
+      {% if field.html_name == 'member' %}
+      <!-- Member select — triggers auto-fill -->
+      <select name="{{ field.html_name }}" id="member-select" class="w-full glow-input">
+        {% for val, label in field.field.choices %}
+        <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      {% elif field.field.widget.input_type == 'select' %}
       <select name="{{ field.html_name }}" class="w-full glow-input">
         {% for val, label in field.field.choices %}
         <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
+
       {% elif field.field.widget.input_type == 'textarea' %}
       <textarea name="{{ field.html_name }}" rows="3"
         class="w-full glow-input resize-none">{{ field.value|default:'' }}</textarea>
+
       {% else %}
-      <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
+      <input type="{{ field.field.widget.input_type }}"
+        name="{{ field.html_name }}"
+        id="field-{{ field.html_name }}"
         value="{{ field.value|default:'' }}"
         class="w-full glow-input" />
       {% endif %}
+
       {% if field.errors %}<p class="text-xs mt-1" style="color:#ef4444">{{ field.errors|join:", " }}</p>{% endif %}
     </div>
     {% endfor %}
+
     <div class="flex gap-3 pt-2">
       <button type="submit"
         class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm"
@@ -40,15 +65,57 @@
 </div>
 
 <script>
-// Fix select option colors in dark mode
-function fixSelectColors() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.querySelectorAll('select').forEach(sel => {
-    sel.style.colorScheme = isDark ? 'dark' : 'light';
-  });
+// ── Auto-fill payment fields from member's plan ──────────────────
+const memberSelect = document.getElementById('member-select');
+
+function setField(name, value) {
+  // Works with both native inputs and flatpickr-upgraded inputs
+  const el = document.getElementById(`field-${name}`);
+  if (!el) return;
+  el.value = value;
+  // If flatpickr is attached, update it too
+  if (el._flatpickr) {
+    el._flatpickr.setDate(value, false);
+  }
 }
-document.addEventListener('DOMContentLoaded', fixSelectColors);
-const _origToggle = window.toggleTheme;
-window.toggleTheme = function() { _origToggle && _origToggle(); setTimeout(fixSelectColors, 50); };
+
+async function autoFillFromMember(memberId) {
+  if (!memberId) {
+    document.getElementById('autofill-banner').classList.add('hidden');
+    return;
+  }
+  try {
+    const res = await fetch(`/billing/member-plan/${memberId}/`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // Auto-fill all fields — staff can still edit any of them
+    setField('amount',       data.plan_price);
+    setField('date_paid',    data.date_paid);
+    setField('period_start', data.period_start);
+    setField('period_end',   data.period_end);
+
+    // Show info banner
+    const banner = document.getElementById('autofill-banner');
+    document.getElementById('autofill-text').textContent =
+      `Auto-filled from plan "${data.plan_name}" — Rs. ${data.plan_price} for ${data.duration_days} days. You can edit any field.`;
+    banner.classList.remove('hidden');
+  } catch (err) {
+    console.error('Auto-fill error:', err);
+  }
+}
+
+// Trigger on page load if member is pre-selected (e.g. from member detail page)
+document.addEventListener('DOMContentLoaded', () => {
+  // The custom select wrapper hides the native select — listen on the native one
+  if (memberSelect && memberSelect.value) {
+    autoFillFromMember(memberSelect.value);
+  }
+
+  // Listen for changes via the custom select component
+  memberSelect.addEventListener('change', () => {
+    autoFillFromMember(memberSelect.value);
+  });
+});
 </script>
 {% endblock %}
