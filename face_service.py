@@ -103,6 +103,39 @@ def _check_liveness(img_bgr, bbox) -> tuple:
     return real_score >= LIVENESS_THRESHOLD, real_score
 
 
+def extract_embedding_for_enrollment(image_bytes: bytes) -> dict:
+    """
+    Extract face embedding for member registration.
+    NO liveness check — registration is done by staff in a controlled environment.
+
+    Returns dict:
+      status: 'ok' | 'no_face' | 'unavailable' | 'error'
+      embedding: list[float] or None
+      message: str
+    """
+    if not INSIGHTFACE_AVAILABLE:
+        return {'status': 'unavailable', 'embedding': None,
+                'message': 'Face recognition not available on this server.'}
+    try:
+        import cv2
+        app = _get_face_app()
+        if app is None:
+            return {'status': 'unavailable', 'embedding': None,
+                    'message': 'Face recognition model not loaded.'}
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return {'status': 'error', 'embedding': None, 'message': 'Could not decode image.'}
+        faces = app.get(img)
+        if not faces:
+            return {'status': 'no_face', 'embedding': None, 'message': 'No face detected.'}
+        face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+        return {'status': 'ok', 'embedding': face.normed_embedding.tolist(), 'message': 'OK'}
+    except Exception as e:
+        return {'status': 'error', 'embedding': None,
+                'message': f'Face processing error: {str(e)}'}
+
+
 def extract_embedding(image_bytes: bytes) -> dict:
     """
     Detect face → liveness check → extract embedding from image bytes.

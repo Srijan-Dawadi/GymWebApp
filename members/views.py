@@ -184,8 +184,8 @@ def enroll_frame_api(request):
     except Exception:
         return JsonResponse({'status': 'error', 'message': 'Invalid image data'}, status=400)
 
-    from face_service import extract_embedding
-    result = extract_embedding(image_bytes)
+    from face_service import extract_embedding_for_enrollment
+    result = extract_embedding_for_enrollment(image_bytes)
     return JsonResponse(result)
 
 
