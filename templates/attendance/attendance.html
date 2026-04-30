@@ -5,7 +5,7 @@
 {% block header_actions %}
 {% if user.profile.role == 'admin' %}
 <a href="/attendance/export/"
-  class="action-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
   style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">
   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -16,6 +16,14 @@
 {% endblock %}
 
 {% block content %}
+<style>
+.glass-card, .glass-card:hover { transform:none !important; box-shadow:none !important; border-color:var(--border) !important; }
+
+/* Subtle button darkening on hover — no lift, no glow */
+button:hover, a.inline-flex:hover, a.px-3:hover {
+  filter: brightness(0.88);
+}
+</style>
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
 
   <!-- Face Recognition Panel -->
@@ -35,8 +43,8 @@
           <p class="text-xs" style="color:var(--text3)">Click to start face recognition scanning</p>
         </div>
         <button onclick="startCamera()"
-          class="action-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.35)">
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+          style="background:#6366f1">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
           </svg>
@@ -79,7 +87,7 @@
       <div id="fr-result" class="hidden mb-3 text-sm px-4 py-3 rounded-xl font-medium border"></div>
 
       <button onclick="stopCamera()"
-        class="action-btn w-full py-2 rounded-xl text-xs font-medium"
+        class="w-full py-2 rounded-xl text-xs font-medium"
         style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
         ⏹ Stop Camera
       </button>
@@ -103,8 +111,8 @@
         {% endfor %}
       </select>
       <button type="submit"
-        class="action-btn w-full py-2.5 text-white font-semibold rounded-xl text-sm"
-        style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 4px 15px rgba(16,185,129,0.25)">
+        class="w-full py-2.5 text-white font-semibold rounded-xl text-sm"
+        style="background:#10b981">
         Check In Manually
       </button>
     </form>
@@ -118,7 +126,7 @@
       </div>
       <div id="checkin-list" class="space-y-1 max-h-52 overflow-y-auto">
         {% for record in today_records %}
-        <div class="flex items-center justify-between py-2 px-3 rounded-lg checkin-item transition-colors">
+        <div class="flex items-center justify-between py-2 px-3 rounded-lg checkin-item">
           <span class="font-medium text-sm" style="color:var(--text)">{{ record.member.full_name }}</span>
           <div class="flex items-center gap-2">
             <span class="text-xs" style="color:var(--text3)">{{ record.check_in_time|time:"g:i A" }}</span>
@@ -135,10 +143,66 @@
   </div>
 </div>
 
-<!-- Attendance history -->
+<!-- Attendance history (filter + table combined) -->
 <div class="glass-card rounded-2xl overflow-hidden">
-  <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
+
+  <!-- Title navbar -->
+  <div class="px-5 py-3.5 flex items-center justify-between" style="border-bottom:1px solid var(--border);background:var(--surface2)">
     <h3 class="font-semibold text-sm" style="color:var(--text)">Attendance History</h3>
+    {% if q or date_from or date_to %}
+    <span class="text-xs" style="color:var(--text3)">{{ total_filtered }} record{{ total_filtered|pluralize }}</span>
+    {% endif %}
+  </div>
+
+  <!-- Filter bar -->
+  <div class="px-5 py-4" style="border-bottom:1px solid var(--border)">
+    <form method="get">
+      <div class="flex flex-wrap gap-3 items-end">
+
+        <div class="flex-1 min-w-40">
+          <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">Member</label>
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              style="width:13px;height:13px;stroke-width:2;color:var(--text3)">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+            </svg>
+            <input type="text" name="q" value="{{ q }}" placeholder="Search member…"
+              class="glow-input w-full px-3 py-2.5 rounded-xl text-sm" style="padding-left:2rem" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
+            <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            From Date
+          </label>
+          <input type="date" name="date_from" value="{{ date_from }}" placeholder="Pick start date"
+            class="glow-input px-3 py-2.5 rounded-xl text-sm w-40" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
+            <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            To Date
+          </label>
+          <input type="date" name="date_to" value="{{ date_to }}" placeholder="Pick end date"
+            class="glow-input px-3 py-2.5 rounded-xl text-sm w-40" />
+        </div>
+
+        <div class="flex gap-2">
+          <button type="submit"
+            class="px-4 py-2.5 rounded-xl text-sm text-white font-semibold"
+            style="background:#6366F1;border:none;cursor:pointer">
+            Filter
+          </button>
+          <a href="/attendance/" class="cancel-btn px-4 py-2.5 rounded-xl text-sm font-medium" style="display:inline-flex;align-items:center">Clear</a>
+        </div>
+      </div>
+
+      {% if q or date_from or date_to %}
+      <p class="mt-2 text-xs" style="color:var(--text3)">{{ total_filtered }} record{{ total_filtered|pluralize }} found</p>
+      {% endif %}
+    </form>
   </div>
 
   <!-- Desktop table -->
@@ -156,7 +220,7 @@
         {% for record in page_obj %}
         <tr>
           <td class="px-5 py-3.5 font-medium" style="color:var(--text)">
-            <a href="/members/{{ record.member.pk }}/" class="hover:text-indigo-500 transition-colors">{{ record.member.full_name }}</a>
+            <a href="/members/{{ record.member.pk }}/" style="color:var(--text)">{{ record.member.full_name }}</a>
           </td>
           <td class="px-5 py-3.5" style="color:var(--text2)">{{ record.date }}</td>
           <td class="px-5 py-3.5" style="color:var(--text2)">{{ record.check_in_time|time:"g:i A" }}</td>
@@ -178,7 +242,7 @@
     {% for record in page_obj %}
     <div class="px-4 py-3 flex items-center justify-between gap-3">
       <div class="min-w-0">
-        <a href="/members/{{ record.member.pk }}/" class="font-medium text-sm hover:text-indigo-500 transition-colors truncate block" style="color:var(--text)">{{ record.member.full_name }}</a>
+        <a href="/members/{{ record.member.pk }}/" class="font-medium text-sm truncate block" style="color:var(--text)">{{ record.member.full_name }}</a>
         <p class="text-xs mt-0.5" style="color:var(--text3)">{{ record.date }} · {{ record.check_in_time|time:"g:i A" }}</p>
       </div>
       <span class="px-2 py-0.5 rounded-lg text-xs font-medium flex-shrink-0 {% if record.method == 'face' %}bg-emerald-500/15 text-emerald-600{% else %}bg-gray-500/10 text-gray-500{% endif %}">
@@ -195,10 +259,10 @@
     <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     <div class="flex gap-2">
       {% if page_obj.has_previous %}
-      <a href="?page={{ page_obj.previous_page_number }}" class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">← Prev</a>
+      <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}" class="px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">← Prev</a>
       {% endif %}
       {% if page_obj.has_next %}
-      <a href="?page={{ page_obj.next_page_number }}" class="action-btn px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">Next →</a>
+      <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}" class="px-3 py-1.5 rounded-lg text-xs" style="background:var(--surface);border:1px solid var(--border);color:var(--text2)">Next →</a>
       {% endif %}
     </div>
   </div>
@@ -287,7 +351,7 @@ function addCheckinToList(name, method) {
   if (empty) empty.remove();
 
   const item = document.createElement('div');
-  item.className = 'flex items-center justify-between py-2 px-3 rounded-lg checkin-item transition-colors';
+  item.className = 'flex items-center justify-between py-2 px-3 rounded-lg checkin-item';
   item.innerHTML = `
     <span class="font-medium text-sm" style="color:var(--text)">${name}</span>
     <div class="flex items-center gap-2">

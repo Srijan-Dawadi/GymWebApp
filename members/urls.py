@@ -9,5 +9,7 @@ urlpatterns = [
     path('<int:pk>/delete/', views.MemberDeleteView.as_view(), name='member_delete'),
     path('<int:pk>/toggle-suspend/', views.MemberToggleSuspendView.as_view(), name='member_toggle_suspend'),
     path('search/', views.member_search_api, name='member_search_api'),
+    path('export/', views.member_export_csv, name='member_export_csv'),
+    path('bulk-action/', views.member_bulk_action, name='member_bulk_action'),
     path('enroll-frame/', views.enroll_frame_api, name='enroll_frame_api'),
 ]

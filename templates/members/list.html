@@ -3,200 +3,622 @@
 {% block page_title %}Members{% endblock %}
 
 {% block header_actions %}
-<a href="/members/add/"
-  class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-150 hover:-translate-y-0.5"
-  style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.35)">
-  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-  Add Member
-</a>
+<div class="flex items-center gap-2">
+  <button onclick="exportAllMembers()" class="export-btn inline-flex items-center gap-1.5" style="background:#ffffff;border:1px solid #E5E7EB;color:#374151;border-radius:6px;font-size:13px;font-weight:500;padding:7px 14px">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+    </svg>
+    Export
+  </button>
+  <a href="/members/add/" class="add-btn inline-flex items-center gap-1.5" style="background:#6366F1;color:#ffffff;border-radius:6px;font-size:13px;font-weight:500;padding:7px 14px;border:none">
+    <svg fill="none" stroke="#ffffff" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+    Add Member
+  </a>
+</div>
+<style>
+  .add-btn:hover { background:#4F46E5 !important; }
+  [data-theme="light"] .export-btn:hover { background:#F9FAFB !important; }
+  [data-theme="dark"]  .export-btn { background:var(--surface) !important; border-color:var(--border) !important; color:var(--text2) !important; }
+  [data-theme="dark"]  .export-btn:hover { background:var(--surface2) !important; }
+</style>
 {% endblock %}
 
 {% block content %}
-<!-- Search bar -->
-<div class="flex flex-wrap gap-3 mb-5">
+<!-- Bulk action bar -->
+<div id="bulk-bar" class="ml-bulk-bar hidden mb-4" style="border-radius:6px;padding:8px 16px;font-size:13px;transition:all 150ms ease">
+  <div class="flex items-center justify-between">
+    <span id="bulk-count" class="ml-bulk-count" style="font-weight:500">0 members selected</span>
+    <div class="flex items-center gap-3">
+      <button onclick="bulkSendReminder()" style="color:#4F46E5;background:none;border:none;font-size:13px;font-weight:500;cursor:pointer">Send reminder</button>
+      <button onclick="bulkExportSelected()" class="ml-bulk-action-secondary" style="background:none;border:none;font-size:13px;font-weight:500;cursor:pointer">Export selected</button>
+      <button onclick="bulkMarkExpired()" style="color:#B91C1C;background:none;border:none;font-size:13px;font-weight:500;cursor:pointer">Mark expired</button>
+    </div>
+  </div>
+</div>
+
+<!-- Search / filter bar -->
+<div class="flex flex-wrap gap-3 mb-4">
   <div class="relative flex-1 min-w-48">
-    <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+    <svg class="ml-search-icon absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
     </svg>
-    <input id="search-input" type="text" value="{{ q }}" placeholder="Search members..." autocomplete="off"
-      class="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm text-white placeholder-gray-600 glow-input transition-all"
-      style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)" />
-    <svg id="search-spinner" class="hidden absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+    <input id="search-input" type="text" value="{{ q }}" placeholder="Search members..."
+      autocomplete="off" class="ml-search-input"
+      style="height:34px;border-radius:6px;font-size:13px;padding:0 12px 0 34px;width:100%" />
+    <svg id="search-spinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2 animate-spin" fill="none" viewBox="0 0 24 24" style="width:16px;height:16px">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="#6366F1" stroke-width="4"/>
+      <path class="opacity-75" fill="#6366F1" d="M4 12a8 8 0 018-8v8z"/>
     </svg>
   </div>
 
-  <select id="status-filter"
-    class="px-4 py-2.5 rounded-xl text-sm text-gray-300 glow-input transition-all"
-    style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">
-    <option value="" class="bg-gray-900">All Statuses</option>
-    <option value="active"    class="bg-gray-900" {% if status_filter == 'active'    %}selected{% endif %}>Active</option>
-    <option value="expired"   class="bg-gray-900" {% if status_filter == 'expired'   %}selected{% endif %}>Expired</option>
-    <option value="suspended" class="bg-gray-900" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended</option>
+  <select id="status-filter" class="ml-select" style="height:34px;border-radius:6px;font-size:13px;padding:0 12px">
+    <option value="">All Statuses</option>
+    <option value="active"    {% if status_filter == 'active'    %}selected{% endif %}>Active</option>
+    <option value="expired"   {% if status_filter == 'expired'   %}selected{% endif %}>Expired</option>
+    <option value="suspended" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended</option>
   </select>
 
-  <button id="clear-btn" class="{% if not q and not status_filter %}hidden{% endif %} px-4 py-2.5 text-gray-400 text-sm rounded-xl border transition-all hover:text-white hover:border-gray-500"
-    style="border-color:rgba(255,255,255,0.08);background:rgba(255,255,255,0.03)">
-    Clear
+  <button id="clear-btn" class="ml-clear-btn {% if not q and not status_filter %}hidden{% endif %}"
+    style="border-radius:4px;font-size:12px;padding:6px 12px;border:none;cursor:pointer">
+    × Clear
   </button>
 </div>
 
-<p id="result-count" class="text-xs text-gray-600 mb-3 hidden"></p>
+<p id="result-count" class="text-xs mb-3 hidden" style="color:var(--text3)"></p>
 
 <!-- Table -->
-<div class="glass-card rounded-2xl overflow-hidden">
+<div class="ml-table-card" style="border-radius:8px;overflow:hidden">
+
   <div class="overflow-x-auto">
-  <table class="w-full text-sm dark-table min-w-[640px]">
+  <table class="w-full text-sm min-w-[800px]">
     <thead>
-      <tr>
-        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Member</th>
-        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Plan</th>
-        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Expiry</th>
-        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Status</th>
-        <th class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--text3)">Actions</th>
+      <tr class="ml-thead">
+        <th class="ml-th" style="width:40px">
+          <input type="checkbox" id="select-all" style="width:16px;height:16px;cursor:pointer" />
+        </th>
+        <th class="ml-th">Member</th>
+        <th class="ml-th">Plan</th>
+        <th class="ml-th">Expiry</th>
+        <th class="ml-th">Days Left</th>
+        <th class="ml-th">Status</th>
+        <th class="ml-th">Actions</th>
       </tr>
     </thead>
     <tbody id="members-tbody">
       {% for member in page_obj %}
-      <tr>
-        <td class="px-5 py-3.5">
+      {% load static %}
+      <tr class="member-row" style="border-bottom:1px solid var(--border){% if forloop.last %};border-bottom:none{% endif %}" data-member-id="{{ member.pk }}">
+        <td style="padding:12px 16px">
+          <input type="checkbox" class="row-checkbox" style="width:16px;height:16px;cursor:pointer" />
+        </td>
+        <td style="padding:12px 16px">
           <div class="flex items-center gap-3">
             {% if member.photo %}
-            <img src="{{ member.photo.url }}" class="w-9 h-9 rounded-full object-cover ring-2 ring-indigo-500/20 flex-shrink-0" alt="" />
+            <img src="{{ member.photo.url }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" alt="" />
             {% else %}
-            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{{ member.full_name|first }}</div>
+            <div class="avatar-circle" data-name="{{ member.full_name }}" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#ffffff;font-weight:600;font-size:14px">{{ member.full_name|first }}</div>
             {% endif %}
-            <div>
-              <p class="font-medium" style="color:var(--text)">{{ member.full_name }}</p>
-              <p class="text-xs" style="color:var(--text3)">{{ member.email }}</p>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <p class="ml-member-name" style="font-size:14px;font-weight:500">{{ member.full_name }}</p>
+              <p class="ml-member-email" style="font-size:12px">{{ member.email }}</p>
             </div>
           </div>
         </td>
-        <td class="px-5 py-3.5 text-sm" style="color:var(--text2)">{{ member.membership_plan.name }}</td>
-        <td class="px-5 py-3.5 text-sm" style="color:var(--text2)">{{ member.expiry_date }}</td>
-        <td class="px-5 py-3.5">
-          <span class="px-2.5 py-1 rounded-lg text-xs font-semibold
-            {% if member.status == 'active' %}bg-emerald-500/15 text-emerald-400
-            {% elif member.status == 'expired' %}bg-red-500/15 text-red-400
-            {% else %}bg-gray-500/15 text-gray-400{% endif %}">
+        <td class="ml-cell" style="padding:12px 16px;font-size:13px">{{ member.membership_plan.name }}</td>
+        <td class="ml-cell" style="padding:12px 16px;font-size:13px">{{ member.expiry_date }}</td>
+        <td style="padding:12px 16px;font-size:13px" class="days-left-cell" data-expiry="{{ member.expiry_date }}" data-status="{{ member.status }}"></td>
+        <td style="padding:12px 16px">
+          <span style="font-size:11px;font-weight:500;border-radius:20px;padding:2px 8px;
+            {% if member.status == 'active' %}background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0
+            {% elif member.status == 'expired' %}background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA
+            {% else %}background:#FFF7ED;color:#B45309;border:1px solid #FED7AA{% endif %}">
             {{ member.get_status_display }}
           </span>
         </td>
-        <td class="px-5 py-3.5">
-          <div class="flex items-center gap-1.5 flex-nowrap">
-            <a href="/members/{{ member.pk }}/" class="action-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-400 hover:text-white hover:bg-indigo-500 whitespace-nowrap" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              View
+        <td style="padding:12px 16px">
+          <div class="flex items-center gap-1">
+            <a href="/members/{{ member.pk }}/" title="View member" class="icon-btn">
+              <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
             </a>
-            <a href="/members/{{ member.pk }}/edit/" class="action-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-amber-400 hover:text-white hover:bg-amber-500 whitespace-nowrap" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              Edit
+            <a href="/members/{{ member.pk }}/edit/" title="Edit member" class="icon-btn">
+              <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </a>
             {% if user.profile.role == 'admin' %}
-            <a href="/members/{{ member.pk }}/delete/" class="action-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:text-white hover:bg-red-500 whitespace-nowrap" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              Delete
+            <a href="/members/{{ member.pk }}/delete/" title="Delete member" class="icon-btn">
+              <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </a>
             {% endif %}
           </div>
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="5" class="px-5 py-14 text-center" style="color:var(--text3)">No members found.</td></tr>
+      <tr id="empty-state"><td colspan="7" style="padding:60px 16px;text-align:center">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+          <svg class="ml-empty-icon" fill="none" viewBox="0 0 24 24" style="width:40px;height:40px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+          <p class="ml-empty-title" style="font-size:15px;font-weight:500">No members found</p>
+          <p class="ml-empty-subtitle" style="font-size:13px">Try adjusting your search or filters</p>
+        </div>
+      </td></tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
 
   <!-- Pagination -->
-  <div id="pagination-bar" class="{% if not page_obj.has_other_pages %}hidden{% endif %}">
-    {% if page_obj.has_other_pages %}
-    <div class="px-5 py-4 flex items-center justify-between text-sm text-gray-500" style="border-top:1px solid rgba(255,255,255,0.05)">
-      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-      <div class="flex gap-2">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}"
-          class="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
-          style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">← Prev</a>
-        {% endif %}
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}"
-          class="px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
-          style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">Next →</a>
-        {% endif %}
-      </div>
+  {% if page_obj.has_other_pages %}
+  <div id="pagination-bar" class="ml-pagination" style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+    <span class="ml-page-info" style="font-size:12px">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <div style="display:flex;align-items:center;gap:4px">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}" class="page-btn" style="padding:4px 10px;font-size:12px;border-radius:4px;text-decoration:none">← Prev</a>
+      {% else %}
+      <span class="page-btn-disabled" style="padding:4px 10px;font-size:12px">← Prev</span>
+      {% endif %}
+
+      {% with cur=page_obj.number total=page_obj.paginator.num_pages %}
+        {% for p in page_obj.paginator.page_range %}
+          {% if p == cur %}
+            <span style="padding:4px 8px;font-size:12px;background:#6366F1;color:#ffffff;border-radius:4px;font-weight:500">{{ p }}</span>
+          {% elif p == 1 or p == total or p >= cur|add:"-2" and p <= cur|add:"2" %}
+            <a href="?page={{ p }}&q={{ q }}&status={{ status_filter }}" class="page-btn" style="padding:4px 8px;font-size:12px;border-radius:4px;text-decoration:none">{{ p }}</a>
+          {% elif p == cur|add:"-3" or p == cur|add:"3" %}
+            <span class="ml-page-info" style="padding:4px 4px;font-size:12px">…</span>
+          {% endif %}
+        {% endfor %}
+      {% endwith %}
+
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}" class="page-btn" style="padding:4px 10px;font-size:12px;border-radius:4px;text-decoration:none">Next →</a>
+      {% else %}
+      <span class="page-btn-disabled" style="padding:4px 10px;font-size:12px">Next →</span>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
+  {% endif %}
 </div>
 
-<script>
-const searchInput   = document.getElementById('search-input');
-const statusFilter  = document.getElementById('status-filter');
-const tbody         = document.getElementById('members-tbody');
-const spinner       = document.getElementById('search-spinner');
-const resultCount   = document.getElementById('result-count');
-const paginationBar = document.getElementById('pagination-bar');
-const clearBtn      = document.getElementById('clear-btn');
-let debounceTimer   = null;
+<style>
+  /* ── Members List — theme-aware styles ─────────────────────────── */
 
-const STATUS = {
-  active:    'bg-emerald-500/15 text-emerald-400',
-  expired:   'bg-red-500/15 text-red-400',
-  suspended: 'bg-gray-500/15 text-gray-400',
+  /* Search input */
+  .ml-search-input {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text);
+  }
+  .ml-search-input::placeholder { color: var(--text3); }
+  .ml-search-input:focus { outline: none; border-color: #6366F1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+  .ml-search-icon { stroke: var(--text3); }
+
+  /* Status dropdown */
+  .ml-select {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text);
+  }
+
+  /* Clear button */
+  [data-theme="light"] .ml-clear-btn { background:#F3F4F6; color:#374151; }
+  [data-theme="dark"]  .ml-clear-btn { background:var(--surface2); color:var(--text2); }
+
+  /* Bulk bar */
+  [data-theme="light"] .ml-bulk-bar { background:#EEF2FF; border:1px solid #C7D2FE; }
+  [data-theme="dark"]  .ml-bulk-bar { background:rgba(99,102,241,0.12); border:1px solid rgba(99,102,241,0.3); }
+  [data-theme="light"] .ml-bulk-count { color:#111827; }
+  [data-theme="dark"]  .ml-bulk-count { color:var(--text); }
+
+  /* Table card */
+  [data-theme="light"] .ml-table-card { background:#ffffff; border:1px solid #E5E7EB; }
+  [data-theme="dark"]  .ml-table-card { background:var(--surface); border:1px solid var(--border); }
+
+  /* Table header row */
+  [data-theme="light"] .ml-thead { background:#F9FAFB; border-bottom:1px solid #E5E7EB; }
+  [data-theme="dark"]  .ml-thead { background:var(--surface2); border-bottom:1px solid var(--border); }
+
+  /* Header cells */
+  .ml-th {
+    padding:10px 16px;
+    text-align:left;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--text3);
+    font-weight:500;
+  }
+
+  /* Body rows */
+  [data-theme="light"] .member-row:hover { background:#FAFAFA; }
+  [data-theme="dark"]  .member-row:hover { background:var(--row-hover); }
+
+  /* Member name / email */
+  .ml-member-name  { color: var(--text); }
+  .ml-member-email { color: var(--text3); }
+
+  /* Plan / expiry cells */
+  .ml-cell { color: var(--text2); }
+
+  /* Icon buttons */
+  .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:1px solid transparent; }
+  .icon-btn svg { stroke: var(--text3); transition: stroke 0.15s; }
+  .icon-btn:hover svg { stroke: var(--text3); }
+  .icon-btn:nth-child(1):hover { background:#EEF2FF; }
+  .icon-btn:nth-child(1):hover svg { stroke:#4F46E5 !important; }
+  .icon-btn:nth-child(2):hover { background:#FFFBEB; }
+  .icon-btn:nth-child(2):hover svg { stroke:#B45309 !important; }
+  .icon-btn:nth-child(3):hover { background:#FEF2F2; }
+  .icon-btn:nth-child(3):hover svg { stroke:#B91C1C !important; }
+  [data-theme="dark"] .icon-btn:nth-child(1):hover { background:rgba(99,102,241,0.15); }
+  [data-theme="dark"] .icon-btn:nth-child(2):hover { background:rgba(245,158,11,0.12); }
+  [data-theme="dark"] .icon-btn:nth-child(3):hover { background:rgba(239,68,68,0.12); }
+
+  /* Pagination */
+  [data-theme="light"] .ml-pagination { border-top:1px solid #E5E7EB; }
+  [data-theme="dark"]  .ml-pagination { border-top:1px solid var(--border); }
+  [data-theme="light"] .ml-page-info  { color:#6B7280; }
+  [data-theme="dark"]  .ml-page-info  { color:var(--text3); }
+
+  /* Page buttons */
+  .page-btn { text-decoration:none; color:var(--text3); border-radius:4px; }
+  .page-btn:hover { background:var(--surface2); color:var(--text); }
+  [data-theme="light"] .page-btn-disabled { color:#D1D5DB; }
+  [data-theme="dark"]  .page-btn-disabled { color:var(--text3); opacity:0.4; }
+
+  /* Result count */
+  #result-count { color: var(--text3); }
+
+  /* Bulk action secondary button */
+  [data-theme="light"] .ml-bulk-action-secondary { color: #374151; }
+  [data-theme="dark"]  .ml-bulk-action-secondary { color: var(--text2); }
+
+  /* Export button base (light mode) */
+  [data-theme="light"] .export-btn { background:#ffffff; border:1px solid #E5E7EB; color:#374151; }
+
+  /* Empty state */
+  .ml-empty-icon   { stroke: var(--border); }
+  [data-theme="dark"] .ml-empty-icon { stroke: var(--text3); opacity: 0.4; }
+  .ml-empty-title    { color: var(--text); }
+  .ml-empty-subtitle { color: var(--text3); }
+</style>
+
+<script>
+// ── Avatar palette (8 muted shades) ──────────────────────────────
+const AVATAR_COLORS = ['#6366F1','#0D9488','#D97706','#7C3AED','#0891B2','#059669','#DC2626','#9333EA'];
+function avatarColor(name) {
+  const code = (name || 'A').toUpperCase().charCodeAt(0) - 65;
+  return AVATAR_COLORS[Math.abs(code) % AVATAR_COLORS.length];
+}
+
+// Apply deterministic colors to server-rendered avatar circles
+document.querySelectorAll('.avatar-circle').forEach(el => {
+  el.style.background = avatarColor(el.dataset.name || '');
+});
+
+// ── Days Left column ──────────────────────────────────────────────
+function fillDaysLeft() {
+  document.querySelectorAll('.days-left-cell').forEach(cell => {
+    const status = cell.dataset.status;
+    if (status === 'suspended') { cell.textContent = '—'; cell.style.color = '#9CA3AF'; return; }
+    const expiry = new Date(cell.dataset.expiry);
+    const today  = new Date(); today.setHours(0,0,0,0);
+    const days   = Math.round((expiry - today) / 86400000);
+    if (days > 14)      { cell.textContent = days + ' days'; cell.style.color = '#15803D'; }
+    else if (days >= 1) { cell.textContent = days + ' days'; cell.style.color = '#B45309'; }
+    else                { cell.textContent = 'Expired';      cell.style.color = '#B91C1C'; }
+  });
+}
+fillDaysLeft();
+
+// ── Bulk selection ────────────────────────────────────────────────
+const selectAll = document.getElementById('select-all');
+const bulkBar   = document.getElementById('bulk-bar');
+const bulkCount = document.getElementById('bulk-count');
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.row-checkbox:checked').length;
+  if (checked > 0) {
+    bulkBar.classList.remove('hidden');
+    bulkCount.textContent = checked + ' member' + (checked !== 1 ? 's' : '') + ' selected';
+  } else {
+    bulkBar.classList.add('hidden');
+  }
+  if (selectAll) {
+    const total = document.querySelectorAll('.row-checkbox').length;
+    selectAll.checked = checked === total && total > 0;
+    selectAll.indeterminate = checked > 0 && checked < total;
+  }
+}
+
+document.querySelectorAll('.row-checkbox').forEach(cb => cb.addEventListener('change', updateBulkBar));
+if (selectAll) {
+  selectAll.addEventListener('change', () => {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = selectAll.checked);
+    updateBulkBar();
+  });
+}
+
+// ── Search / filter (debounced, logic unchanged) ──────────────────
+const searchInput  = document.getElementById('search-input');
+const statusFilter = document.getElementById('status-filter');
+const tbody        = document.getElementById('members-tbody');
+const spinner      = document.getElementById('search-spinner');
+const resultCount  = document.getElementById('result-count');
+const clearBtn     = document.getElementById('clear-btn');
+let debounceTimer  = null;
+
+const STATUS_BADGE = {
+  active:    'background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0',
+  expired:   'background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA',
+  suspended: 'background:#FFF7ED;color:#B45309;border:1px solid #FED7AA',
 };
 
 function avatarHtml(m) {
-  if (m.photo_url) return `<img src="${m.photo_url}" class="w-9 h-9 rounded-full object-cover ring-2 flex-shrink-0" style="--tw-ring-color:rgba(99,102,241,0.2)" alt="" />`;
-  return `<div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">${m.full_name.charAt(0).toUpperCase()}</div>`;
+  if (m.photo_url) return `<img src="${m.photo_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" alt="" />`;
+  const bg = avatarColor(m.full_name);
+  return `<div style="width:36px;height:36px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px">${m.full_name.charAt(0).toUpperCase()}</div>`;
+}
+
+function daysLeftHtml(m) {
+  if (m.status === 'suspended') return `<span style="color:var(--text3)">—</span>`;
+  const expiry = new Date(m.expiry_date);
+  const today  = new Date(); today.setHours(0,0,0,0);
+  const days   = Math.round((expiry - today) / 86400000);
+  if (days > 14)      return `<span style="color:#15803D">${days} days</span>`;
+  if (days >= 1)      return `<span style="color:#B45309">${days} days</span>`;
+  return `<span style="color:#B91C1C">Expired</span>`;
 }
 
 function actionButtons(m) {
-  const view = `<a href="/members/${m.id}/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-indigo-400 hover:text-white hover:bg-indigo-500" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>View</a>`;
-  const edit = `<a href="/members/${m.id}/edit/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-amber-400 hover:text-white hover:bg-amber-500" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Edit</a>`;
-  const del = m.is_admin ? `<a href="/members/${m.id}/delete/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-red-400 hover:text-white hover:bg-red-500" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>Delete</a>` : '';
-  return `<div class="flex items-center gap-2">${view}${edit}${del}</div>`;
+  const view = `<a href="/members/${m.id}/" title="View member" class="icon-btn"><svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></a>`;
+  const edit = `<a href="/members/${m.id}/edit/" title="Edit member" class="icon-btn"><svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></a>`;
+  const del  = m.is_admin ? `<a href="/members/${m.id}/delete/" title="Delete member" class="icon-btn"><svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></a>` : '';
+  return `<div style="display:flex;align-items:center;gap:4px">${view}${edit}${del}</div>`;
 }
 
 function renderRows(members) {
   if (!members.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-14 text-center text-gray-600">No members found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:60px 16px;text-align:center">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        <svg class="ml-empty-icon" fill="none" viewBox="0 0 24 24" style="width:40px;height:40px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+        <p class="ml-empty-title" style="font-size:15px;font-weight:500">No members found</p>
+        <p class="ml-empty-subtitle" style="font-size:13px">Try adjusting your search or filters</p>
+      </div>
+    </td></tr>`;
     return;
   }
   tbody.innerHTML = members.map(m => `
-    <tr>
-      <td class="px-5 py-3.5"><div class="flex items-center gap-3">${avatarHtml(m)}<div><p class="font-medium text-gray-100">${m.full_name}</p><p class="text-gray-500 text-xs">${m.email}</p></div></div></td>
-      <td class="px-5 py-3.5 text-gray-400 text-sm">${m.plan}</td>
-      <td class="px-5 py-3.5 text-gray-400 text-sm">${m.expiry_date}</td>
-      <td class="px-5 py-3.5"><span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${STATUS[m.status] || STATUS.suspended}">${m.status_display}</span></td>
-      <td class="px-5 py-3.5">${actionButtons(m)}</td>
+    <tr class="member-row" data-member-id="${m.id}" style="border-bottom:1px solid var(--border)">
+      <td style="padding:12px 16px"><input type="checkbox" class="row-checkbox" style="width:16px;height:16px;cursor:pointer" /></td>
+      <td style="padding:12px 16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          ${avatarHtml(m)}
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <p class="ml-member-name" style="font-size:14px;font-weight:500">${m.full_name}</p>
+            <p class="ml-member-email" style="font-size:12px">${m.email}</p>
+          </div>
+        </div>
+      </td>
+      <td class="ml-cell" style="padding:12px 16px;font-size:13px">${m.plan}</td>
+      <td class="ml-cell" style="padding:12px 16px;font-size:13px">${m.expiry_date}</td>
+      <td style="padding:12px 16px;font-size:13px">${daysLeftHtml(m)}</td>
+      <td style="padding:12px 16px"><span style="font-size:11px;font-weight:500;border-radius:20px;padding:2px 8px;${STATUS_BADGE[m.status] || STATUS_BADGE.suspended}">${m.status_display}</span></td>
+      <td style="padding:12px 16px">${actionButtons(m)}</td>
     </tr>`).join('');
+  // re-bind checkboxes for dynamically rendered rows
+  document.querySelectorAll('.row-checkbox').forEach(cb => cb.addEventListener('change', updateBulkBar));
 }
 
 function doSearch() {
-  const q = searchInput.value.trim();
+  const q      = searchInput.value.trim();
   const status = statusFilter.value;
   clearBtn.classList.toggle('hidden', !q && !status);
-  if (!q && !status) { location.href = '/members/'; return; }
   spinner.classList.remove('hidden');
-  paginationBar.classList.add('hidden');
   const params = new URLSearchParams();
-  if (q) params.set('q', q);
+  if (q)      params.set('q', q);
   if (status) params.set('status', status);
   fetch(`/members/search/?${params}`)
     .then(r => r.json())
     .then(data => {
       renderRows(data.results);
-      resultCount.textContent = `${data.count} member${data.count !== 1 ? 's' : ''} found`;
-      resultCount.classList.remove('hidden');
+      if (q || status) {
+        resultCount.textContent = `${data.count} member${data.count !== 1 ? 's' : ''} found`;
+        resultCount.classList.remove('hidden');
+      } else {
+        resultCount.classList.add('hidden');
+      }
     })
-    .catch(() => { tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-10 text-center text-red-400">Search failed.</td></tr>`; })
+    .catch(() => {
+      tbody.innerHTML = `<tr><td colspan="7" style="padding:40px 16px;text-align:center;color:#B91C1C;font-size:13px">Search failed. Please try again.</td></tr>`;
+    })
     .finally(() => spinner.classList.add('hidden'));
 }
 
 searchInput.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(doSearch, 250); });
 statusFilter.addEventListener('change', () => { clearTimeout(debounceTimer); doSearch(); });
-clearBtn.addEventListener('click', () => { searchInput.value = ''; statusFilter.value = ''; resultCount.classList.add('hidden'); location.href = '/members/'; });
+clearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  statusFilter.value = '';
+  resultCount.classList.add('hidden');
+  doSearch();
+});
+
+// ── Helper: collect checked IDs ───────────────────────────────────
+function getCheckedIds() {
+  return Array.from(document.querySelectorAll('.row-checkbox:checked'))
+    .map(cb => cb.closest('tr').dataset.memberId)
+    .filter(Boolean);
+}
+
+// ── Export all members (header button) ───────────────────────────
+function exportAllMembers() {
+  const status = statusFilter ? statusFilter.value : '';
+  const q      = searchInput  ? searchInput.value.trim() : '';
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (q)      params.set('q', q);
+  window.location.href = `/members/export/?${params}`;
+}
+
+// ── Bulk: export selected ─────────────────────────────────────────
+function bulkExportSelected() {
+  const ids = getCheckedIds();
+  if (!ids.length) return;
+  window.location.href = `/members/export/?ids=${ids.join(',')}`;
+}
+
+// ── Bulk: mark expired ────────────────────────────────────────────
+function bulkMarkExpired() {
+  const ids = getCheckedIds();
+  if (!ids.length) return;
+  if (!confirm(`Mark ${ids.length} member(s) as expired? Their expiry date will be set to yesterday.`)) return;
+
+  fetch('/members/bulk-action/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken'),
+    },
+    body: JSON.stringify({ action: 'mark_expired', ids: ids.map(Number) }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      showUndoToast(data.updated, data.originals);
+      // Update rows in-place without a full reload
+      refreshCheckedRows();
+    } else {
+      alert(data.error || 'Action failed.');
+    }
+  })
+  .catch(() => alert('Request failed. Please try again.'));
+}
+
+// ── Undo: restore original expiry dates ──────────────────────────
+function undoMarkExpired(originals) {
+  fetch('/members/bulk-action/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken'),
+    },
+    body: JSON.stringify({ action: 'undo_mark_expired', originals }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      location.reload();
+    } else {
+      alert(data.error || 'Undo failed.');
+    }
+  })
+  .catch(() => alert('Undo request failed.'));
+}
+
+// ── Undo toast ────────────────────────────────────────────────────
+let _undoTimer = null;
+
+function showUndoToast(count, originals) {
+  // Remove any existing undo toast
+  const existing = document.getElementById('undo-toast');
+  if (existing) existing.remove();
+  if (_undoTimer) clearTimeout(_undoTimer);
+
+  const toast = document.createElement('div');
+  toast.id = 'undo-toast';
+  toast.style.cssText = `
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:#1e1e2e; color:#f1f5f9;
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px; padding:12px 20px;
+    display:flex; align-items:center; gap:16px;
+    font-size:13px; font-weight:500;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+    z-index:9999;
+    animation: slideUp 0.25s cubic-bezier(.4,0,.2,1);
+  `;
+
+  const style = document.createElement('style');
+  style.textContent = `@keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`;
+  document.head.appendChild(style);
+
+  const msg = document.createElement('span');
+  msg.textContent = `${count} member${count !== 1 ? 's' : ''} marked as expired`;
+
+  const undoBtn = document.createElement('button');
+  undoBtn.textContent = 'Undo';
+  undoBtn.style.cssText = `
+    background:#6366F1; color:#fff; border:none; border-radius:6px;
+    padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer;
+  `;
+  undoBtn.onclick = () => {
+    toast.remove();
+    clearTimeout(_undoTimer);
+    undoMarkExpired(originals);
+  };
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = `background:none; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:14px; padding:0 4px;`;
+  closeBtn.onclick = () => { toast.remove(); clearTimeout(_undoTimer); };
+
+  toast.appendChild(msg);
+  toast.appendChild(undoBtn);
+  toast.appendChild(closeBtn);
+  document.body.appendChild(toast);
+
+  // Auto-dismiss after 8 seconds
+  _undoTimer = setTimeout(() => toast.remove(), 8000);
+}
+
+// ── Refresh checked rows after mark-expired (no full reload) ──────
+function refreshCheckedRows() {
+  const ids = Array.from(document.querySelectorAll('.row-checkbox:checked'))
+    .map(cb => cb.closest('tr').dataset.memberId)
+    .filter(Boolean);
+
+  if (!ids.length) return;
+
+  fetch(`/members/search/?ids_hint=${ids.join(',')}`)
+    .catch(() => {});
+
+  // Update the visible rows immediately (optimistic UI)
+  document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+    const row = cb.closest('tr');
+    if (!row) return;
+
+    // Update status badge
+    const badge = row.querySelector('td:nth-child(6) span');
+    if (badge) {
+      badge.textContent = 'Expired';
+      badge.style.cssText = 'font-size:11px;font-weight:500;border-radius:20px;padding:2px 8px;background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA';
+    }
+
+    // Update days-left cell
+    const daysCell = row.querySelector('.days-left-cell');
+    if (daysCell) {
+      daysCell.textContent = 'Expired';
+      daysCell.style.color = '#B91C1C';
+    }
+
+    // Uncheck
+    cb.checked = false;
+  });
+
+  updateBulkBar();
+}
+
+// ── Bulk: send reminder (placeholder — no email backend yet) ──────
+function bulkSendReminder() {
+  const ids = getCheckedIds();
+  if (!ids.length) return;
+  alert(`Reminder feature coming soon.\n${ids.length} member(s) selected.`);
+}
+
+// ── CSRF helper ───────────────────────────────────────────────────
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : '';
+}
 </script>
 {% endblock %}

@@ -24,15 +24,33 @@ class AttendanceView(View):
     def get(self, request):
         today = timezone.localdate()
         today_records = Attendance.objects.filter(date=today).select_related('member').order_by('-check_in_time')
-        all_records = Attendance.objects.select_related('member').order_by('-date', '-check_in_time')
-        paginator = Paginator(all_records, 30)
+
+        qs = Attendance.objects.select_related('member').order_by('-date', '-check_in_time')
+
+        # ── Filters ──────────────────────────────────────────────
+        q          = request.GET.get('q', '').strip()
+        date_from  = request.GET.get('date_from', '').strip()
+        date_to    = request.GET.get('date_to', '').strip()
+
+        if q:
+            qs = qs.filter(member__full_name__icontains=q)
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+        if date_to:
+            qs = qs.filter(date__lte=date_to)
+
+        paginator = Paginator(qs, 30)
         page = paginator.get_page(request.GET.get('page'))
         members = Member.objects.filter(status='active').order_by('full_name')
         return render(request, self.template_name, {
             'today_records': today_records,
-            'page_obj': page,
-            'members': members,
-            'today': today,
+            'page_obj':      page,
+            'members':       members,
+            'today':         today,
+            'q':             q,
+            'date_from':     date_from,
+            'date_to':       date_to,
+            'total_filtered': qs.count(),
         })
 
     def post(self, request):
