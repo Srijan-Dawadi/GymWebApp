@@ -1,23 +1,20 @@
 {% extends 'base.html' %}
-{% block title %}Delete Member — GymApp{% endblock %}
+{% block title %}Delete Member — 5 Star Fitness{% endblock %}
 {% block page_title %}Delete Member{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto">
-  <div class="glass-card rounded-2xl p-8 text-center">
-    <div class="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center text-3xl"
-      style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">⚠️</div>
-    <h2 class="text-xl font-bold mb-2" style="color:var(--text)">Delete {{ member.full_name }}?</h2>
-    <p class="text-sm mb-6 leading-relaxed" style="color:var(--text2)">This will permanently delete the member and all their attendance records. This cannot be undone.</p>
-    <form method="post" class="flex gap-3 justify-center">
-      {% csrf_token %}
-      <a href="/members/{{ member.pk }}/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium">Cancel</a>
-      <button type="submit"
-        class="action-btn px-5 py-2.5 rounded-xl text-sm text-white font-semibold"
-        style="background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 15px rgba(239,68,68,0.3)">
-        Yes, Delete
-      </button>
-    </form>
-  </div>
+<div class="max-w-md mx-auto" style="background:#181818;border:1px solid #282828;border-radius:8px;padding:32px;text-align:center">
+  <div style="width:64px;height:64px;border-radius:50%;background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px">⚠️</div>
+  <h2 style="font-size:20px;font-weight:700;color:#ffffff;margin-bottom:8px">Delete {{ member.full_name }}?</h2>
+  <p style="font-size:14px;color:#b3b3b3;margin-bottom:24px">This will permanently delete the member and all their attendance and payment records. This cannot be undone.</p>
+  <form method="post" class="flex gap-3 justify-center">
+    {% csrf_token %}
+    <a href="/members/{{ member.pk }}/" class="cancel-btn">Cancel</a>
+    <button type="submit"
+      style="background:#f3727f;color:#000;border-radius:9999px;padding:10px 28px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer;transition:background 0.15s"
+      onmouseover="this.style.background='#ff8a94'" onmouseout="this.style.background='#f3727f'">
+      Yes, Delete
+    </button>
+  </form>
 </div>
 {% endblock %}

@@ -1,12 +1,19 @@
-{% extends 'base.html' %}
-{% block title %}403 — GymApp{% endblock %}
-{% block page_title %}Access Denied{% endblock %}
-{% block content %}
-<div class="flex flex-col items-center justify-center py-24 text-center">
-  <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-6" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">🔒</div>
-  <h2 class="text-2xl font-bold text-white mb-2">403 — Permission Denied</h2>
-  <p class="text-gray-500 mb-6 text-sm">You don't have permission to access this page.</p>
-  <a href="/dashboard/" class="px-5 py-2.5 text-white font-semibold rounded-xl text-sm transition-all hover:-translate-y-0.5"
-    style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">Back to Dashboard</a>
-</div>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>403 — Access Denied</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>* { font-family: 'CircularSp', 'Helvetica Neue', helvetica, arial, sans-serif; }</style>
+</head>
+<body style="background:#121212;min-height:100vh;display:flex;align-items:center;justify-content:center">
+  <div style="text-align:center;padding:40px">
+    <div style="font-size:64px;margin-bottom:16px">🚫</div>
+    <h1 style="font-size:48px;font-weight:700;color:#f3727f;margin-bottom:8px">403</h1>
+    <p style="font-size:18px;font-weight:700;color:#ffffff;margin-bottom:8px">Access Denied</p>
+    <p style="font-size:14px;color:#b3b3b3;margin-bottom:24px">You don't have permission to view this page.</p>
+    <a href="/dashboard/" style="background:#1ed760;color:#000;border-radius:9999px;padding:10px 28px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;text-decoration:none">Go to Dashboard</a>
+  </div>
+</body>
+</html>

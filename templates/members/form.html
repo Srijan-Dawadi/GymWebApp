@@ -1,27 +1,24 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} — GymApp{% endblock %}
+{% block title %}{{ title }} — 5 Star Fitness{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-5">
+<div class="max-w-2xl mx-auto space-y-4">
 
-  <!-- Member details form -->
-  <div class="glass-card rounded-2xl p-6">
-    <h3 class="font-semibold mb-4 flex items-center gap-2" style="color:var(--text)">
-      <span class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-500 text-sm flex-shrink-0">👤</span>
+  <!-- Member details -->
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:24px">
+    <h3 style="font-size:16px;font-weight:700;color:#ffffff;margin-bottom:20px;display:flex;align-items:center;gap:10px">
+      <span style="width:28px;height:28px;border-radius:50%;background:#1ed760;display:flex;align-items:center;justify-content:center;color:#000;font-size:14px;flex-shrink:0">👤</span>
       Member Details
     </h3>
 
     <form method="post" enctype="multipart/form-data" id="member-form" class="space-y-4">
       {% csrf_token %}
-      <!-- Hidden: first captured frame as photo -->
       <input type="file" name="photo" id="photo-hidden" accept="image/*" class="hidden" />
-      <!-- Hidden: all collected embeddings as JSON -->
       <input type="hidden" name="face_embeddings" id="face-embeddings-input" />
 
       {% if form.non_field_errors %}
-      <div class="text-sm rounded-xl px-3 py-2.5 border"
-        style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:#dc2626">
+      <div style="background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3);color:#f3727f;border-radius:8px;padding:12px 16px;font-size:13px">
         {{ form.non_field_errors }}
       </div>
       {% endif %}
@@ -29,22 +26,21 @@
       {% for field in form.visible_fields %}
       {% if field.html_name != 'photo' %}
       <div>
-        <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
-          {{ field.label }}{% if field.field.required %} <span style="color:#ef4444">*</span>{% endif %}
+        <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">
+          {{ field.label }}{% if field.field.required %} <span style="color:#f3727f">*</span>{% endif %}
         </label>
         {% if field.field.widget.input_type == 'select' %}
-        <select name="{{ field.html_name }}" class="w-full glow-input">
+        <select name="{{ field.html_name }}" class="glow-input" style="border-radius:8px !important">
           {% for val, label in field.field.choices %}
           <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
         {% else %}
         <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
-          value="{{ field.value|default:'' }}"
-          class="w-full glow-input {% if field.errors %}!border-red-400{% endif %}" />
+          value="{{ field.value|default:'' }}" class="glow-input" />
         {% endif %}
         {% if field.errors %}
-        <p class="text-xs mt-1" style="color:#ef4444">{{ field.errors|join:", " }}</p>
+        <p style="font-size:12px;color:#f3727f;margin-top:4px">{{ field.errors|join:", " }}</p>
         {% endif %}
       </div>
       {% endif %}
@@ -52,156 +48,126 @@
 
       <div class="flex gap-3 pt-2">
         <button type="submit" id="submit-btn" disabled
-          class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+          style="flex:1;padding:12px;background:#1ed760;color:#000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer;opacity:0.4;transition:opacity 0.15s">
           Save Member
         </button>
-        <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
-          Cancel
-        </a>
+        <a href="/members/" class="cancel-btn">Cancel</a>
       </div>
     </form>
   </div>
 
-  <!-- Face Enrollment Panel -->
-  <div class="glass-card rounded-2xl p-6">
-    <h3 class="font-semibold mb-1 flex items-center gap-2" style="color:var(--text)">
-      <span class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-500 text-sm flex-shrink-0">📷</span>
-      Face Enrollment
-      <span id="enrollment-badge" class="ml-auto text-xs px-2 py-1 rounded-lg font-semibold"
-        style="background:rgba(245,158,11,0.1);color:#d97706">0 / 5 captured</span>
-    </h3>
-    <p class="text-xs mb-4 ml-9" style="color:var(--text3)">
-      Capture 5 angles for accurate recognition. Follow the on-screen prompts.
-    </p>
+  <!-- Face Enrollment -->
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <h3 style="font-size:16px;font-weight:700;color:#ffffff;display:flex;align-items:center;gap:10px">
+        <span style="width:28px;height:28px;border-radius:50%;background:#1f1f1f;border:1px solid #4d4d4d;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">📷</span>
+        Face Enrollment
+      </h3>
+      <span id="enrollment-badge" style="background:rgba(255,164,43,0.1);color:#ffa42b;border:1px solid rgba(255,164,43,0.3);border-radius:9999px;font-size:12px;font-weight:700;padding:4px 12px">0 / 5 captured</span>
+    </div>
+    <p style="font-size:13px;color:#b3b3b3;margin-bottom:16px;margin-left:38px">Capture 5 angles for accurate recognition.</p>
 
     {% if member and member.face_descriptor %}
-    <div class="mb-4 rounded-xl px-3 py-2.5 flex items-center gap-2"
-      style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
-      <span style="color:#059669" class="text-sm">✓ Face already enrolled ({{ member.face_descriptor|length }} angles). Re-enroll below to update.</span>
+    <div style="background:rgba(30,215,96,0.08);border:1px solid rgba(30,215,96,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1ed760">
+      ✓ Face already enrolled ({{ member.face_descriptor|length }} angles). Re-enroll below to update.
     </div>
     {% endif %}
 
-    <!-- Camera gate -->
+    <!-- Gate -->
     <div id="enroll-gate">
       <button type="button" onclick="startEnrollment()"
-        class="action-btn w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
-        style="background:rgba(99,102,241,0.1);border:2px dashed rgba(99,102,241,0.3);color:#818cf8">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
-        </svg>
-        Start Face Enrollment
+        style="width:100%;padding:16px;background:transparent;border:2px dashed #4d4d4d;border-radius:8px;color:#b3b3b3;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color 0.15s,color 0.15s"
+        onmouseover="this.style.borderColor='#1ed760';this.style.color='#1ed760'" onmouseout="this.style.borderColor='#4d4d4d';this.style.color='#b3b3b3'">
+        📷 Start Face Enrollment
       </button>
     </div>
 
     <!-- Enrollment panel -->
     <div id="enroll-panel" class="hidden space-y-4">
-
-      <!-- Pose progress dots -->
+      <!-- Pose dots -->
       <div class="flex items-center justify-center gap-3">
-        <div id="dot-0" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">1</div>
-        <div id="dot-1" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">2</div>
-        <div id="dot-2" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">3</div>
-        <div id="dot-3" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">4</div>
-        <div id="dot-4" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all" style="background:var(--surface2);border:2px solid var(--border);color:var(--text3)">5</div>
+        <div id="dot-0" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:#282828;border:2px solid #4d4d4d;color:#b3b3b3">1</div>
+        <div id="dot-1" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:#282828;border:2px solid #4d4d4d;color:#b3b3b3">2</div>
+        <div id="dot-2" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:#282828;border:2px solid #4d4d4d;color:#b3b3b3">3</div>
+        <div id="dot-3" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:#282828;border:2px solid #4d4d4d;color:#b3b3b3">4</div>
+        <div id="dot-4" class="pose-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background:#282828;border:2px solid #4d4d4d;color:#b3b3b3">5</div>
       </div>
 
-      <!-- Pose instruction -->
-      <div id="pose-instruction" class="text-center py-3 rounded-xl font-semibold text-sm"
-        style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);color:#818cf8">
+      <div id="pose-instruction" style="text-align:center;padding:12px;border-radius:8px;font-size:14px;font-weight:700;background:rgba(30,215,96,0.08);border:1px solid rgba(30,215,96,0.2);color:#1ed760">
         📷 Look straight at the camera
       </div>
 
-      <!-- Video -->
-      <div class="relative rounded-xl overflow-hidden" style="background:#0a0a0f;aspect-ratio:4/3">
-        <video id="enroll-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+      <div style="position:relative;border-radius:8px;overflow:hidden;background:#0a0a0a;aspect-ratio:4/3">
+        <video id="enroll-video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover"></video>
         <canvas id="enroll-canvas" class="hidden"></canvas>
-
-        <!-- Flash overlay on capture -->
-        <div id="enroll-flash" class="absolute inset-0 hidden items-center justify-center pointer-events-none"
-          style="background:rgba(99,102,241,0.7)">
-          <div class="text-white text-center">
-            <div class="text-4xl mb-1">✅</div>
-            <p id="flash-text" class="font-bold text-sm"></p>
+        <div id="enroll-flash" class="absolute inset-0 hidden items-center justify-center pointer-events-none" style="background:rgba(30,215,96,0.7)">
+          <div style="text-align:center;color:#000">
+            <div style="font-size:48px;margin-bottom:4px">✅</div>
+            <p id="flash-text" style="font-weight:700;font-size:14px"></p>
           </div>
         </div>
       </div>
 
-      <!-- Status -->
-      <div id="enroll-status" class="text-xs rounded-lg px-3 py-2 font-medium"
-        style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#d97706">
+      <div id="enroll-status" style="font-size:12px;border-radius:8px;padding:10px 14px;font-weight:700;background:rgba(255,164,43,0.08);border:1px solid rgba(255,164,43,0.2);color:#ffa42b">
         ⏳ Starting camera...
       </div>
 
-      <!-- Captured thumbnails -->
       <div id="thumbnails" class="flex gap-2 flex-wrap"></div>
 
-      <!-- Buttons -->
       <div class="flex gap-2">
         <button type="button" id="capture-pose-btn" onclick="capturePose()" disabled
-          class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+          style="flex:1;padding:12px;background:#1ed760;color:#000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer;opacity:0.4;transition:opacity 0.15s">
           📸 Capture
         </button>
         <button type="button" onclick="resetEnrollment()"
-          class="action-btn px-4 py-2.5 rounded-xl text-sm font-medium"
-          style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#d97706">
+          style="padding:12px 16px;background:rgba(255,164,43,0.08);border:1px solid rgba(255,164,43,0.2);color:#ffa42b;border-radius:9999px;font-size:14px;font-weight:700;cursor:pointer">
           🔄 Reset
         </button>
         <button type="button" onclick="stopEnrollment()"
-          class="action-btn px-4 py-2.5 rounded-xl text-sm font-medium"
-          style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
+          style="padding:12px 16px;background:rgba(243,114,127,0.08);border:1px solid rgba(243,114,127,0.2);color:#f3727f;border-radius:9999px;font-size:14px;font-weight:700;cursor:pointer">
           ✕
         </button>
       </div>
     </div>
 
-    <!-- Enrollment complete banner -->
-    <div id="enroll-complete" class="hidden mt-4 rounded-xl px-4 py-3 flex items-center gap-3"
-      style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
-      <div class="text-2xl">🎉</div>
+    <!-- Complete banner -->
+    <div id="enroll-complete" class="hidden mt-4" style="background:rgba(30,215,96,0.08);border:1px solid rgba(30,215,96,0.2);border-radius:8px;padding:16px;display:none;align-items:center;gap:12px">
+      <div style="font-size:24px">🎉</div>
       <div>
-        <p class="text-sm font-semibold" style="color:#059669">Face enrollment complete!</p>
-        <p class="text-xs mt-0.5" style="color:var(--text3)">5 angles captured. Fill in the details above and click Save Member.</p>
+        <p style="font-size:14px;font-weight:700;color:#1ed760">Face enrollment complete!</p>
+        <p style="font-size:12px;color:#b3b3b3;margin-top:2px">5 angles captured. Fill in the details above and click Save Member.</p>
       </div>
-      <button type="button" onclick="resetEnrollment()" class="ml-auto text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
-        style="color:#059669;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.08)">Re-enroll</button>
+      <button type="button" onclick="resetEnrollment()" style="margin-left:auto;background:transparent;border:1px solid rgba(30,215,96,0.3);color:#1ed760;border-radius:9999px;font-size:12px;font-weight:700;padding:6px 14px;cursor:pointer;text-transform:uppercase;letter-spacing:1.4px">Re-enroll</button>
     </div>
 
-    <!-- Validation error -->
-    <div id="enroll-error" class="hidden mt-3 text-xs rounded-lg px-3 py-2"
-      style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
+    <div id="enroll-error" class="hidden mt-3" style="background:rgba(243,114,127,0.08);border:1px solid rgba(243,114,127,0.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#f3727f">
       ❌ Please complete face enrollment before saving.
     </div>
   </div>
-
 </div>
 
 <script>
 const ENROLL_URL = '/members/enroll-frame/';
 const POSES = [
-  { label: '📷 Look straight at the camera',     emoji: '😐' },
-  { label: '↙️ Turn slightly to the left',        emoji: '😶' },
-  { label: '↗️ Turn slightly to the right',       emoji: '😶' },
-  { label: '⬆️ Tilt your head slightly up',       emoji: '🙂' },
-  { label: '⬇️ Tilt your head slightly down',     emoji: '🙂' },
+  { label: '📷 Look straight at the camera' },
+  { label: '↙️ Turn slightly to the left' },
+  { label: '↗️ Turn slightly to the right' },
+  { label: '⬆️ Tilt your head slightly up' },
+  { label: '⬇️ Tilt your head slightly down' },
 ];
 
-let camStream      = null;
-let enrolledEmbeds = [];   // collected embeddings
-let firstFrameBlob = null; // first capture used as photo
-let currentPose    = 0;
+let camStream = null, enrolledEmbeds = [], currentPose = 0;
 const isEdit = {% if member %}true{% else %}false{% endif %};
 
-function setEnrollStatus(msg, type = 'info') {
+function setEnrollStatus(msg, type='info') {
   const el = document.getElementById('enroll-status');
   const styles = {
-    info:    'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#d97706',
-    success: 'background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:#059669',
-    error:   'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626',
-    info2:   'background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);color:#818cf8',
+    info:    'background:rgba(255,164,43,0.08);border:1px solid rgba(255,164,43,0.2);color:#ffa42b',
+    success: 'background:rgba(30,215,96,0.08);border:1px solid rgba(30,215,96,0.2);color:#1ed760',
+    error:   'background:rgba(243,114,127,0.08);border:1px solid rgba(243,114,127,0.2);color:#f3727f',
+    info2:   'background:rgba(30,215,96,0.08);border:1px solid rgba(30,215,96,0.2);color:#1ed760',
   };
-  el.style.cssText = styles[type] || styles.info;
+  el.style.cssText = (styles[type] || styles.info) + ';font-size:12px;border-radius:8px;padding:10px 14px;font-weight:700';
   el.textContent = msg;
 }
 
@@ -209,40 +175,32 @@ function updatePoseDots() {
   POSES.forEach((_, i) => {
     const dot = document.getElementById(`dot-${i}`);
     if (i < enrolledEmbeds.length) {
-      dot.style.cssText = 'background:linear-gradient(135deg,#10b981,#059669);border:2px solid #10b981;color:white;';
+      dot.style.cssText = 'width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:#1ed760;border:2px solid #1ed760;color:#000';
       dot.textContent = '✓';
     } else if (i === currentPose) {
-      dot.style.cssText = 'background:linear-gradient(135deg,#6366f1,#8b5cf6);border:2px solid #6366f1;color:white;box-shadow:0 0 12px rgba(99,102,241,0.4)';
+      dot.style.cssText = 'width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:#1f1f1f;border:2px solid #1ed760;color:#1ed760;box-shadow:0 0 12px rgba(30,215,96,0.4)';
       dot.textContent = i + 1;
     } else {
-      dot.style.cssText = 'background:var(--surface2);border:2px solid var(--border);color:var(--text3)';
+      dot.style.cssText = 'width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:#282828;border:2px solid #4d4d4d;color:#b3b3b3';
       dot.textContent = i + 1;
     }
   });
-  document.getElementById('enrollment-badge').textContent = `${enrolledEmbeds.length} / 5 captured`;
-  if (enrolledEmbeds.length === 5) {
-    document.getElementById('enrollment-badge').style.cssText = 'background:rgba(16,185,129,0.1);color:#059669';
-  }
-}
-
-function updatePoseInstruction() {
-  const el = document.getElementById('pose-instruction');
-  if (currentPose < POSES.length) {
-    el.textContent = POSES[currentPose].label;
-  }
+  const badge = document.getElementById('enrollment-badge');
+  badge.textContent = `${enrolledEmbeds.length} / 5 captured`;
+  if (enrolledEmbeds.length === 5) badge.style.cssText = 'background:rgba(30,215,96,0.1);color:#1ed760;border:1px solid rgba(30,215,96,0.3);border-radius:9999px;font-size:12px;font-weight:700;padding:4px 12px';
 }
 
 async function startEnrollment() {
   document.getElementById('enroll-gate').classList.add('hidden');
   document.getElementById('enroll-panel').classList.remove('hidden');
-  document.getElementById('enroll-complete').classList.add('hidden');
+  document.getElementById('enroll-complete').style.display = 'none';
   try {
     camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
     document.getElementById('enroll-video').srcObject = camStream;
     setEnrollStatus('✅ Camera ready — ' + POSES[0].label.toLowerCase(), 'info2');
-    document.getElementById('capture-pose-btn').disabled = false;
+    const btn = document.getElementById('capture-pose-btn');
+    btn.disabled = false; btn.style.opacity = '1';
     updatePoseDots();
-    updatePoseInstruction();
   } catch (err) {
     setEnrollStatus('❌ Camera access denied. Please allow camera permissions.', 'error');
   }
@@ -255,143 +213,95 @@ function stopEnrollment() {
 }
 
 function resetEnrollment() {
-  enrolledEmbeds = [];
-  firstFrameBlob = null;
-  currentPose    = 0;
+  enrolledEmbeds = []; currentPose = 0;
   document.getElementById('thumbnails').innerHTML = '';
-  document.getElementById('enroll-complete').classList.add('hidden');
+  document.getElementById('enroll-complete').style.display = 'none';
   document.getElementById('enroll-error').classList.add('hidden');
   document.getElementById('face-embeddings-input').value = '';
   document.getElementById('photo-hidden').value = '';
-  document.getElementById('submit-btn').disabled = true;
+  const sb = document.getElementById('submit-btn'); sb.disabled = true; sb.style.opacity = '0.4';
   updatePoseDots();
-  updatePoseInstruction();
-  if (!camStream) {
-    startEnrollment();
-  } else {
-    setEnrollStatus('✅ Camera ready — ' + POSES[0].label.toLowerCase(), 'info2');
-    document.getElementById('capture-pose-btn').disabled = false;
-  }
+  document.getElementById('pose-instruction').textContent = POSES[0].label;
+  if (!camStream) startEnrollment();
+  else { setEnrollStatus('✅ Camera ready — ' + POSES[0].label.toLowerCase(), 'info2'); const btn = document.getElementById('capture-pose-btn'); btn.disabled = false; btn.style.opacity = '1'; }
 }
 
 async function capturePose() {
-  const video  = document.getElementById('enroll-video');
+  const video = document.getElementById('enroll-video');
   const canvas = document.getElementById('enroll-canvas');
-  if (!camStream || !video.videoWidth) {
-    setEnrollStatus('❌ Camera not ready yet.', 'error');
-    return;
-  }
-
+  if (!camStream || !video.videoWidth) { setEnrollStatus('❌ Camera not ready yet.', 'error'); return; }
   const btn = document.getElementById('capture-pose-btn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Processing...';
-  setEnrollStatus('⏳ Detecting face and extracting embedding...', 'info');
-
-  // Draw frame
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
+  btn.disabled = true; btn.textContent = '⏳ Processing...';
+  setEnrollStatus('⏳ Detecting face...', 'info');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
   const imageB64 = canvas.toDataURL('image/jpeg', 0.9);
-
-  // Save first frame as photo
   if (currentPose === 0) {
     canvas.toBlob(blob => {
-      firstFrameBlob = blob;
       const file = new File([blob], 'enrollment_photo.jpg', { type: 'image/jpeg' });
-      const dt = new DataTransfer();
-      dt.items.add(file);
+      const dt = new DataTransfer(); dt.items.add(file);
       document.getElementById('photo-hidden').files = dt.files;
     }, 'image/jpeg', 0.9);
   }
-
   try {
-    const res = await fetch(ENROLL_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ image: imageB64 }),
-    });
+    const res = await fetch(ENROLL_URL, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')}, body:JSON.stringify({image:imageB64}) });
     const data = await res.json();
-
     if (data.status === 'ok') {
       enrolledEmbeds.push(data.embedding);
-
-      // Flash overlay
       const flash = document.getElementById('enroll-flash');
       document.getElementById('flash-text').textContent = POSES[currentPose].label;
-      flash.classList.remove('hidden');
-      flash.classList.add('flex');
+      flash.classList.remove('hidden'); flash.classList.add('flex');
       setTimeout(() => { flash.classList.add('hidden'); flash.classList.remove('flex'); }, 700);
-
-      // Add thumbnail
       const thumb = document.createElement('div');
-      thumb.className = 'relative';
-      thumb.innerHTML = `
-        <img src="${imageB64}" class="w-14 h-14 rounded-lg object-cover ring-2 ring-emerald-500/40" />
-        <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">${enrolledEmbeds.length}</span>`;
+      thumb.style.cssText = 'position:relative';
+      thumb.innerHTML = `<img src="${imageB64}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;border:2px solid rgba(30,215,96,0.4)" /><span style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#1ed760;display:flex;align-items:center;justify-content:center;color:#000;font-size:10px;font-weight:700">${enrolledEmbeds.length}</span>`;
       document.getElementById('thumbnails').appendChild(thumb);
-
       currentPose++;
       updatePoseDots();
-
       if (currentPose < POSES.length) {
-        updatePoseInstruction();
+        document.getElementById('pose-instruction').textContent = POSES[currentPose].label;
         setEnrollStatus('✅ Captured! Now: ' + POSES[currentPose].label, 'success');
-        btn.disabled = false;
-        btn.textContent = '📸 Capture';
+        btn.disabled = false; btn.textContent = '📸 Capture'; btn.style.opacity = '1';
       } else {
-        // All 5 done
         document.getElementById('face-embeddings-input').value = JSON.stringify(enrolledEmbeds);
-        document.getElementById('submit-btn').disabled = false;
+        const sb = document.getElementById('submit-btn'); sb.disabled = false; sb.style.opacity = '1';
         document.getElementById('enroll-error').classList.add('hidden');
         setEnrollStatus('🎉 All 5 angles captured! You can now save the member.', 'success');
-        document.getElementById('enroll-complete').classList.remove('hidden');
-        document.getElementById('capture-pose-btn').disabled = true;
-        // Stop camera
+        const comp = document.getElementById('enroll-complete'); comp.style.display = 'flex';
+        btn.disabled = true; btn.style.opacity = '0.4';
         if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
       }
     } else if (data.status === 'no_face') {
-      setEnrollStatus('⚠️ No face detected. Make sure the member\'s face is clearly visible.', 'error');
-      btn.disabled = false;
-      btn.textContent = '📸 Capture';
+      setEnrollStatus('⚠️ No face detected. Make sure the face is clearly visible.', 'error');
+      btn.disabled = false; btn.textContent = '📸 Capture'; btn.style.opacity = '1';
     } else if (data.status === 'spoof') {
-      setEnrollStatus('🚫 Liveness check failed. Please use a real person, not a photo.', 'error');
-      btn.disabled = false;
-      btn.textContent = '📸 Capture';
+      setEnrollStatus('🚫 Liveness check failed. Please use a real person.', 'error');
+      btn.disabled = false; btn.textContent = '📸 Capture'; btn.style.opacity = '1';
     } else {
       setEnrollStatus(`❌ ${data.message || 'Error processing frame.'}`, 'error');
-      btn.disabled = false;
-      btn.textContent = '📸 Capture';
+      btn.disabled = false; btn.textContent = '📸 Capture'; btn.style.opacity = '1';
     }
   } catch (err) {
     setEnrollStatus('❌ Network error. Please try again.', 'error');
-    btn.disabled = false;
-    btn.textContent = '📸 Capture';
+    btn.disabled = false; btn.textContent = '📸 Capture'; btn.style.opacity = '1';
   }
 }
 
-// Validate on submit
 document.getElementById('member-form').addEventListener('submit', function(e) {
   const embeds = document.getElementById('face-embeddings-input').value;
   const hasEmbeds = embeds && JSON.parse(embeds).length > 0;
   const hasExisting = isEdit && {% if member and member.face_descriptor %}true{% else %}false{% endif %};
-
   if (!hasEmbeds && !hasExisting) {
     e.preventDefault();
-    document.getElementById('enroll-error').classList.remove('hidden');
-    document.getElementById('enroll-error').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const err = document.getElementById('enroll-error');
+    err.classList.remove('hidden');
+    err.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 });
 
-function getCookie(name) {
-  const v = `; ${document.cookie}`;
-  const p = v.split(`; ${name}=`);
-  if (p.length === 2) return p.pop().split(';').shift();
-  return '';
-}
-
-// On edit with existing enrollment, enable submit immediately
+function getCookie(name) { const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)')); return match ? decodeURIComponent(match[1]) : ''; }
 {% if member and member.face_descriptor %}
-document.getElementById('submit-btn').disabled = false;
+const sb = document.getElementById('submit-btn'); sb.disabled = false; sb.style.opacity = '1';
 {% endif %}
 </script>
 {% endblock %}

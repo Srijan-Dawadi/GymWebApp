@@ -1,27 +1,26 @@
 {% extends 'base.html' %}
-{% block title %}Edit Plan — GymApp{% endblock %}
+{% block title %}Edit Plan — 5 Star Fitness{% endblock %}
 {% block page_title %}Edit Plan: {{ plan.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto glass-card rounded-2xl p-6">
+<div class="max-w-md mx-auto" style="background:#181818;border:1px solid #282828;border-radius:8px;padding:24px">
   <form method="post" class="space-y-4">
     {% csrf_token %}
     {% for field in form %}
     <div>
-      <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">{{ field.label }}</label>
+      <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">{{ field.label }}</label>
       <input type="{{ field.field.widget.input_type }}" name="{{ field.html_name }}"
-        value="{{ field.value|default:'' }}"
-        class="w-full glow-input" />
-      {% if field.errors %}<p class="text-xs mt-1" style="color:#ef4444">{{ field.errors|join:", " }}</p>{% endif %}
+        value="{{ field.value|default:'' }}" class="glow-input" />
+      {% if field.errors %}<p style="font-size:12px;color:#f3727f;margin-top:4px">{{ field.errors|join:", " }}</p>{% endif %}
     </div>
     {% endfor %}
     <div class="flex gap-3 pt-2">
       <button type="submit"
-        class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm"
-        style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+        style="flex:1;padding:12px;background:#1ed760;color:#000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer;transition:background 0.15s"
+        onmouseover="this.style.background='#1fdf64'" onmouseout="this.style.background='#1ed760'">
         Save Changes
       </button>
-      <a href="/billing/plans/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">Cancel</a>
+      <a href="/billing/plans/" class="cancel-btn">Cancel</a>
     </div>
   </form>
 </div>

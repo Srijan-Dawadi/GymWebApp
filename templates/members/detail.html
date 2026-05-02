@@ -1,12 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}{{ member.full_name }} — GymApp{% endblock %}
+{% block title %}{{ member.full_name }} — 5 Star Fitness{% endblock %}
 {% block page_title %}{{ member.full_name }}{% endblock %}
 
 {% block header_actions %}
 <a href="/members/{{ member.pk }}/edit/"
-  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-  style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);color:#f59e0b">
-  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+  style="background:#1f1f1f;border:1px solid #4d4d4d;color:#ffffff;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 16px;display:inline-flex;align-items:center;gap:8px;text-decoration:none">
   Edit
 </a>
 {% if user.profile.role == 'admin' %}
@@ -14,154 +12,50 @@
 <form method="post" action="/members/{{ member.pk }}/delete/" id="delete-member-form" class="hidden">{% csrf_token %}</form>
 {% if member.status == 'suspended' %}
 <button type="button" id="suspend-btn" data-action="reactivate" data-name="{{ member.full_name }}"
-  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-  style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:#10b981">
-  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  style="background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3);color:#1ed760;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 16px;cursor:pointer">
   Reactivate
 </button>
 {% else %}
 <button type="button" id="suspend-btn" data-action="suspend" data-name="{{ member.full_name }}"
-  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-  style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.25);color:#f97316">
-  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+  style="background:rgba(255,164,43,0.1);border:1px solid rgba(255,164,43,0.3);color:#ffa42b;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 16px;cursor:pointer">
   Suspend
 </button>
 {% endif %}
 <button type="button" id="delete-member-btn" data-name="{{ member.full_name }}"
-  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-  style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#ef4444">
-  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+  style="background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3);color:#f3727f;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 16px;cursor:pointer">
   Delete
 </button>
 {% endif %}
 {% endblock %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
-/* ── No hover lift anywhere on this page ── */
-.glass-card        { transform: none !important; }
-.glass-card:hover  { transform: none !important; box-shadow: none !important; border-color: var(--border) !important; }
-
-/* ── Theme tokens ── */
-[data-theme="light"] {
-  --d-bg:       #F8FAFC;
-  --d-card:     #FFFFFF;
-  --d-border:   #E5E7EB;
-  --d-row:      #F9FAFB;
-  --d-t1:       #111827;
-  --d-t2:       #374151;
-  --d-t3:       #9CA3AF;
-}
-[data-theme="dark"] {
-  --d-bg:       #0F0F13;
-  --d-card:     #1C1C24;
-  --d-border:   #2E2E3A;
-  --d-row:      #16161F;
-  --d-t1:       #F1F5F9;
-  --d-t2:       #94A3B8;
-  --d-t3:       #64748B;
-}
-
-/* ── Layout ── */
-.dp-wrap   { display:flex; gap:20px; align-items:flex-start; }
-.dp-left   { width:240px; flex-shrink:0; }
-.dp-right  { flex:1; min-width:0; }
-@media(max-width:768px){ .dp-wrap{flex-direction:column;} .dp-left{width:100%;} }
-
-/* ── Cards ── */
-.dp-card {
-  background: var(--d-card);
-  border: 1px solid var(--d-border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-/* ── Section header inside card ── */
-.dp-sec-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--d-border);
-  font-size: 13px; font-weight: 600; color: var(--d-t1);
-}
-
-/* ── Table rows ── */
-.dp-row {
-  display: flex; align-items: center;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--d-border);
-  font-size: 13px;
-}
-.dp-row:last-child { border-bottom: none; }
-
-/* ── Stat grid ── */
-.dp-stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
-@media(max-width:640px){ .dp-stat-grid{grid-template-columns:repeat(2,1fr);} }
-.dp-stat {
-  background: var(--d-card);
-  border: 1px solid var(--d-border);
-  border-radius: 8px;
-  padding: 14px 16px;
-}
-.dp-stat-label { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--d-t3); margin-bottom:5px; }
-.dp-stat-value { font-size:20px; font-weight:600; color:var(--d-t1); line-height:1; }
-.dp-stat-sub   { font-size:11px; color:var(--d-t3); margin-top:3px; }
-
-/* ── Status pills ── */
-.pill { font-size:11px; font-weight:500; border-radius:20px; padding:2px 9px; display:inline-block; }
-[data-theme="light"] .pill-active     { background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0; }
-[data-theme="light"] .pill-expired    { background:#FEF2F2; color:#B91C1C; border:1px solid #FECACA; }
-[data-theme="light"] .pill-suspended  { background:#FFF7ED; color:#B45309; border:1px solid #FED7AA; }
-[data-theme="dark"]  .pill-active     { background:#052E16; color:#4ADE80; border:1px solid #166534; }
-[data-theme="dark"]  .pill-expired    { background:#2D0A0A; color:#F87171; border:1px solid #7F1D1D; }
-[data-theme="dark"]  .pill-suspended  { background:#2D1A00; color:#FBB040; border:1px solid #78350F; }
-
-/* ── Method badges ── */
-.badge-face   { font-size:11px; font-weight:500; border-radius:4px; padding:2px 7px; background:#EEF2FF; color:#4F46E5; }
-.badge-manual { font-size:11px; font-weight:500; border-radius:4px; padding:2px 7px; background:#F3F4F6; color:#6B7280; }
-[data-theme="dark"] .badge-face   { background:rgba(99,102,241,.18); color:#818CF8; }
-[data-theme="dark"] .badge-manual { background:rgba(255,255,255,.07); color:#94A3B8; }
-
-/* ── Alert banners ── */
-.dp-alert {
-  border-radius: 6px; padding: 10px 14px;
-  font-size: 13px; display:flex; align-items:center; gap:10px;
-  margin-bottom: 14px;
-}
-.dp-alert-warn    { background:#FFF7ED; border-left:3px solid #F59E0B; color:#92400E; }
-.dp-alert-danger  { background:#FEF2F2; border-left:3px solid #EF4444; color:#991B1B; }
-[data-theme="dark"] .dp-alert-warn   { background:#2D1A00; color:#FBB040; }
-[data-theme="dark"] .dp-alert-danger { background:#2D0A0A; color:#F87171; }
-
-/* ── Sidebar info rows ── */
-.dp-info-row {
-  display:flex; justify-content:space-between; align-items:flex-start;
-  padding:8px 16px; border-bottom:1px solid var(--d-border); font-size:12px;
-}
-.dp-info-row:last-child { border-bottom:none; }
-.dp-info-label { color:var(--d-t3); flex-shrink:0; padding-right:8px; }
-.dp-info-val   { color:var(--d-t2); text-align:right; word-break:break-all; }
-
-/* ── Quick action buttons ── */
-.dp-action {
-  display:flex; align-items:center; justify-content:center; gap:7px;
-  width:100%; height:34px; border-radius:6px; font-size:13px; font-weight:500;
-  background:var(--d-card); border:1px solid var(--d-border);
-  color:var(--d-t2); cursor:pointer; text-decoration:none;
-}
-
-/* ── Tabs ── */
-.dp-tabs { display:flex; border-bottom:1px solid var(--d-border); }
-.dp-tab  {
-  padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer;
-  border:none; border-bottom:2px solid transparent;
-  background:none; color:var(--d-t3); white-space:nowrap;
-}
-.dp-tab.on { color:#6366F1; border-bottom-color:#6366F1; }
-.dp-panel  { display:none; }
-.dp-panel.on { display:block; }
+  .dp-card { background:#181818; border:1px solid #282828; border-radius:8px; overflow:hidden; }
+  .dp-row { display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid #282828; font-size:13px; }
+  .dp-row:last-child { border-bottom:none; }
+  .dp-stat { background:#181818; border:1px solid #282828; border-radius:8px; padding:16px; }
+  .dp-stat-label { font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:#b3b3b3; margin-bottom:6px; font-weight:700; }
+  .dp-stat-value { font-size:20px; font-weight:700; color:#ffffff; line-height:1; }
+  .dp-stat-sub   { font-size:11px; color:#b3b3b3; margin-top:4px; }
+  .dp-tab { padding:12px 16px; font-size:14px; font-weight:700; cursor:pointer; border:none; border-bottom:2px solid transparent; background:none; color:#b3b3b3; text-transform:uppercase; letter-spacing:1.4px; }
+  .dp-tab.on { color:#1ed760; border-bottom-color:#1ed760; }
+  .dp-panel { display:none; }
+  .dp-panel.on { display:block; }
+  .dp-info-row { display:flex; justify-content:space-between; align-items:flex-start; padding:10px 16px; border-bottom:1px solid #282828; font-size:12px; }
+  .dp-info-row:last-child { border-bottom:none; }
+  .dp-info-label { color:#b3b3b3; flex-shrink:0; padding-right:8px; font-weight:700; text-transform:uppercase; letter-spacing:1.4px; font-size:11px; }
+  .dp-info-val   { color:#ffffff; text-align:right; word-break:break-all; }
+  .dp-action { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; height:36px; border-radius:9999px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1.4px; background:#1f1f1f; border:1px solid #4d4d4d; color:#ffffff; cursor:pointer; text-decoration:none; transition:background 0.15s; }
+  .dp-action:hover { background:#282828; }
+  .dp-alert { border-radius:8px; padding:12px 16px; font-size:13px; display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .dp-alert-warn   { background:rgba(255,164,43,0.1); border:1px solid rgba(255,164,43,0.3); color:#ffa42b; }
+  .dp-alert-danger { background:rgba(243,114,127,0.1); border:1px solid rgba(243,114,127,0.3); color:#f3727f; }
+  .badge-face   { font-size:11px; font-weight:700; border-radius:9999px; padding:2px 8px; background:rgba(30,215,96,0.1); color:#1ed760; }
+  .badge-manual { font-size:11px; font-weight:700; border-radius:9999px; padding:2px 8px; background:#282828; color:#b3b3b3; }
 </style>
 
-<!-- ── Alert banners (above everything) ── -->
+<!-- Alert banners -->
 {% if member.status == 'suspended' %}
 <div class="dp-alert dp-alert-warn">
   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -176,13 +70,13 @@
 <div class="dp-alert dp-alert-warn">
   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
   <span>Membership expires in <strong>{{ days_until_expiry }} day{{ days_until_expiry|pluralize }}</strong> ({{ member.expiry_date }}) —
-    <a href="/billing/payments/add/?member={{ member.pk }}" style="color:#6366F1;font-weight:600;text-decoration:none">Renew now →</a>
+    <a href="/billing/payments/add/?member={{ member.pk }}" style="color:#1ed760;font-weight:700;text-decoration:none">Renew now →</a>
   </span>
 </div>
 {% endif %}
 
-<!-- ── Stat strip ── -->
-<div class="dp-stat-grid">
+<!-- Stat strip -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
   <div class="dp-stat">
     <div class="dp-stat-label">Joined</div>
     <div class="dp-stat-value" style="font-size:15px">{{ member.join_date }}</div>
@@ -190,21 +84,12 @@
   </div>
   <div class="dp-stat">
     <div class="dp-stat-label">Expiry</div>
-    <div class="dp-stat-value" style="font-size:15px;
-      {% if member.status == 'expired' %}color:#B91C1C
-      {% elif days_until_expiry <= 14 %}color:#B45309
-      {% else %}color:var(--d-t1){% endif %}">
-      {{ member.expiry_date }}
-    </div>
-    <div class="dp-stat-sub">
-      {% if member.status == 'expired' %}Expired
-      {% elif days_until_expiry == 0 %}Expires today
-      {% else %}{{ days_until_expiry }} days left{% endif %}
-    </div>
+    <div class="dp-stat-value" style="font-size:15px;{% if member.status == 'expired' %}color:#f3727f{% elif days_until_expiry <= 14 %}color:#ffa42b{% endif %}">{{ member.expiry_date }}</div>
+    <div class="dp-stat-sub">{% if member.status == 'expired' %}Expired{% elif days_until_expiry == 0 %}Expires today{% else %}{{ days_until_expiry }} days left{% endif %}</div>
   </div>
   <div class="dp-stat">
     <div class="dp-stat-label">Total Paid</div>
-    <div class="dp-stat-value">₹{{ total_paid }}</div>
+    <div class="dp-stat-value" style="color:#1ed760">₹{{ total_paid }}</div>
     <div class="dp-stat-sub">{{ payments|length }} payment{{ payments|length|pluralize }}</div>
   </div>
   <div class="dp-stat">
@@ -214,345 +99,153 @@
   </div>
 </div>
 
-<!-- ── Chart row: sparkline + payment bar side by side ── -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<!-- Charts -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-
-  <!-- Attendance sparkline -->
-  <div class="dp-card" style="padding:14px 16px">
+  <div class="dp-card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div>
-        <span style="font-size:12px;font-weight:600;color:var(--d-t1)">Attendance — last 30 days</span>
-        <span id="streak-badge" style="margin-left:8px;font-size:11px;font-weight:500;border-radius:4px;padding:1px 7px;background:#EEF2FF;color:#4F46E5"></span>
-      </div>
-      <span style="font-size:11px;color:var(--d-t3)">{{ sessions_30d }}/30 days</span>
+      <span style="font-size:13px;font-weight:700;color:#ffffff">Attendance — last 30 days</span>
+      <span style="font-size:11px;color:#b3b3b3">{{ sessions_30d }}/30 days</span>
     </div>
-    <div style="height:90px;position:relative">
-      <canvas id="spark-chart"></canvas>
-    </div>
-    <!-- Week labels below bars -->
-    <div style="display:flex;justify-content:space-between;margin-top:4px;padding:0 2px">
-      <span style="font-size:10px;color:var(--d-t3)">4w ago</span>
-      <span style="font-size:10px;color:var(--d-t3)">3w ago</span>
-      <span style="font-size:10px;color:var(--d-t3)">2w ago</span>
-      <span style="font-size:10px;color:var(--d-t3)">1w ago</span>
-      <span style="font-size:10px;color:var(--d-t3)">Today</span>
-    </div>
+    <div style="height:90px"><canvas id="spark-chart"></canvas></div>
   </div>
-
-  <!-- Payment bar — last 6 months -->
-  <div class="dp-card" style="padding:14px 16px">
+  <div class="dp-card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:12px;font-weight:600;color:var(--d-t1)">Payments — last 6 months</span>
-      <span style="font-size:11px;color:var(--d-t3)">₹{{ total_paid }} total</span>
+      <span style="font-size:13px;font-weight:700;color:#ffffff">Payments — last 6 months</span>
+      <span style="font-size:11px;color:#b3b3b3">₹{{ total_paid }} total</span>
     </div>
-    <div style="height:56px;position:relative">
-      <canvas id="pay-chart"></canvas>
-    </div>
+    <div style="height:56px"><canvas id="pay-chart"></canvas></div>
   </div>
-
 </div>
-<!-- responsive: stack on mobile -->
-<style>
-@media(max-width:600px){
-  #chart-row { grid-template-columns:1fr !important; }
-}
-</style>
+<style>@media(max-width:600px){#chart-row{grid-template-columns:1fr !important}}</style>
 
-<!-- ── Two-column layout ── -->
-<div class="dp-wrap">
-
-  <!-- LEFT: profile sidebar -->
-  <div class="dp-left">
+<!-- Two-column layout -->
+<div style="display:flex;gap:20px;align-items:flex-start">
+  <!-- Left sidebar -->
+  <div style="width:240px;flex-shrink:0">
     <div class="dp-card">
-
-      <!-- Photo + name + status -->
-      <div style="padding:20px 16px 14px;text-align:center;border-bottom:1px solid var(--d-border)">
+      <div style="padding:20px 16px 16px;text-align:center;border-bottom:1px solid #282828">
         {% if member.photo %}
-        <img src="{{ member.photo.url }}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 10px;display:block" alt="" />
+        <img src="{{ member.photo.url }}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block" alt="" />
         {% else %}
-        <div id="avatar-circle" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:700;margin:0 auto 10px">{{ member.full_name|first }}</div>
+        <div id="avatar-circle" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#000;font-size:26px;font-weight:700;margin:0 auto 12px;background:#1ed760">{{ member.full_name|first }}</div>
         {% endif %}
-        <p style="font-size:15px;font-weight:600;color:var(--d-t1);margin-bottom:6px">{{ member.full_name }}</p>
-        <span class="pill pill-{{ member.status }}">{{ member.get_status_display }}</span>
+        <p style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:8px">{{ member.full_name }}</p>
+        {% if member.status == 'active' %}<span class="badge-active">Active</span>
+        {% elif member.status == 'expired' %}<span class="badge-expired">Expired</span>
+        {% else %}<span class="badge-suspended">Suspended</span>{% endif %}
       </div>
-
-      <!-- Info rows -->
       <div>
-        <div class="dp-info-row">
-          <span class="dp-info-label">Phone</span>
-          <span class="dp-info-val">{{ member.phone }}</span>
-        </div>
-        <div class="dp-info-row">
-          <span class="dp-info-label">Email</span>
-          <span class="dp-info-val" style="font-size:11px">{{ member.email }}</span>
-        </div>
-        <div class="dp-info-row">
-          <span class="dp-info-label">Plan</span>
-          <span class="dp-info-val">{{ member.membership_plan.name }}</span>
-        </div>
+        <div class="dp-info-row"><span class="dp-info-label">Phone</span><span class="dp-info-val">{{ member.phone }}</span></div>
+        <div class="dp-info-row"><span class="dp-info-label">Email</span><span class="dp-info-val" style="font-size:11px">{{ member.email }}</span></div>
+        <div class="dp-info-row"><span class="dp-info-label">Plan</span><span class="dp-info-val">{{ member.membership_plan.name }}</span></div>
         <div class="dp-info-row">
           <span class="dp-info-label">Face ID</span>
           <span class="dp-info-val">
-            {% if member.face_descriptor %}
-            <span style="color:#15803D;font-size:11px">● {{ member.face_descriptor|length }} angles</span>
-            {% else %}
-            <span style="color:#B91C1C;font-size:11px">● Not enrolled</span>
-            {% endif %}
+            {% if member.face_descriptor %}<span style="color:#1ed760;font-size:11px">● {{ member.face_descriptor|length }} angles</span>
+            {% else %}<span style="color:#f3727f;font-size:11px">● Not enrolled</span>{% endif %}
           </span>
         </div>
       </div>
-
-      <!-- Quick actions -->
-      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--d-border)">
-        <a href="/members/{{ member.pk }}/edit/" class="dp-action">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-          Edit profile
-        </a>
+      <div style="padding:12px;border-top:1px solid #282828">
+        <a href="/members/{{ member.pk }}/edit/" class="dp-action">Edit Profile</a>
       </div>
     </div>
   </div>
 
-  <!-- RIGHT: tabbed content -->
-  <div class="dp-right">
+  <!-- Right tabbed content -->
+  <div style="flex:1;min-width:0">
     <div class="dp-card">
-
-      <!-- Tab bar -->
-      <div class="dp-tabs">
+      <div style="display:flex;border-bottom:1px solid #282828">
         <button class="dp-tab on" data-tab="payments">Payments</button>
         <button class="dp-tab" data-tab="attendance">Attendance</button>
       </div>
 
-      <!-- PAYMENTS panel -->
       <div class="dp-panel on" id="tab-payments">
-        <div class="dp-sec-head">
-          <span>Payment history</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #282828">
+          <span style="font-size:14px;font-weight:700;color:#ffffff">Payment history</span>
           <a href="/billing/payments/add/?member={{ member.pk }}"
-            style="background:#6366F1;color:#fff;border-radius:5px;font-size:12px;font-weight:600;padding:4px 12px;text-decoration:none">
+            style="background:#1ed760;color:#000;border-radius:9999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:6px 16px;text-decoration:none">
             + Record
           </a>
         </div>
-
         {% for payment in payments %}
         <div class="dp-row">
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--d-t1);font-weight:500">{{ payment.period_start }} → {{ payment.period_end }}</div>
-            <div style="font-size:11px;color:var(--d-t3);margin-top:2px">Paid {{ payment.date_paid }}</div>
+            <div style="font-size:13px;color:#ffffff;font-weight:700">{{ payment.period_start }} → {{ payment.period_end }}</div>
+            <div style="font-size:11px;color:#b3b3b3;margin-top:2px">Paid {{ payment.date_paid }}</div>
           </div>
           <span class="badge-manual" style="margin-right:12px">{{ payment.get_payment_method_display }}</span>
-          <span style="font-size:14px;font-weight:600;color:var(--d-t1)">₹{{ payment.amount }}</span>
+          <span style="font-size:14px;font-weight:700;color:#1ed760">₹{{ payment.amount }}</span>
         </div>
         {% empty %}
-        <div style="padding:40px 16px;text-align:center;color:var(--d-t3);font-size:13px">No payments recorded yet.</div>
+        <div style="padding:40px 16px;text-align:center;color:#b3b3b3;font-size:13px">No payments recorded yet.</div>
         {% endfor %}
-
         {% if payments %}
-        <div style="padding:10px 16px;border-top:1px solid var(--d-border);text-align:right;font-size:13px;font-weight:500;color:var(--d-t2)">
+        <div style="padding:12px 16px;border-top:1px solid #282828;text-align:right;font-size:13px;font-weight:700;color:#1ed760">
           Total paid: ₹{{ total_paid }}
         </div>
         {% endif %}
       </div>
 
-      <!-- ATTENDANCE panel -->
       <div class="dp-panel" id="tab-attendance">
-        <div class="dp-sec-head">
-          <span>Recent attendance</span>
-          <span style="font-size:11px;font-weight:400;color:var(--d-t3)">Last 30 records</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #282828">
+          <span style="font-size:14px;font-weight:700;color:#ffffff">Recent attendance</span>
+          <span style="font-size:11px;color:#b3b3b3">Last 30 records</span>
         </div>
-
         {% for record in attendances %}
         <div class="dp-row">
-          <span style="flex:1;color:var(--d-t2)">{{ record.date }}</span>
-          {% if record.method == 'face' %}
-          <span class="badge-face" style="margin-right:12px">Face ID</span>
-          {% else %}
-          <span class="badge-manual" style="margin-right:12px">Manual</span>
-          {% endif %}
-          <span style="font-size:12px;color:var(--d-t3);font-family:monospace">{{ record.check_in_time|time:"g:i A" }}</span>
+          <span style="flex:1;color:#b3b3b3">{{ record.date }}</span>
+          {% if record.method == 'face' %}<span class="badge-face" style="margin-right:12px">Face ID</span>
+          {% else %}<span class="badge-manual" style="margin-right:12px">Manual</span>{% endif %}
+          <span style="font-size:12px;color:#b3b3b3;font-family:monospace">{{ record.check_in_time|time:"g:i A" }}</span>
         </div>
         {% empty %}
-        <div style="padding:40px 16px;text-align:center;color:var(--d-t3);font-size:13px">No attendance records yet.</div>
+        <div style="padding:40px 16px;text-align:center;color:#b3b3b3;font-size:13px">No attendance records yet.</div>
         {% endfor %}
       </div>
-
-    </div><!-- end dp-card -->
-  </div><!-- end dp-right -->
-</div><!-- end dp-wrap -->
+    </div>
+  </div>
+</div>
 
 <script>
-/* Avatar color */
-const COLORS = ['#6366F1','#0D9488','#D97706','#7C3AED','#0891B2','#059669','#DC2626','#9333EA'];
+const COLORS = ['#1ed760','#1db954','#539df5','#ffa42b','#f3727f','#b3b3b3'];
 const av = document.getElementById('avatar-circle');
-if (av) {
-  const c = (av.textContent.trim().toUpperCase().charCodeAt(0) - 65 + COLORS.length) % COLORS.length;
-  av.style.background = COLORS[c];
-}
+if (av) { const c = (av.textContent.trim().toUpperCase().charCodeAt(0) - 65 + COLORS.length) % COLORS.length; av.style.background = COLORS[c]; }
 
-/* ── Chart 1: 30-day attendance sparkline ── */
+const gridClr = () => 'rgba(255,255,255,0.06)';
+const lblClr  = () => '#6b6b6b';
+const tipDefs = () => ({ backgroundColor:'#181818', titleColor:'#ffffff', bodyColor:'#b3b3b3', borderColor:'#4d4d4d', borderWidth:1, padding:10 });
+
 (function() {
   const sparkLabels = {{ spark_labels|safe }};
   const sparkData   = {{ spark_data|safe }};
-
-  // Same helpers as dashboard
-  const isDarkFn  = () => document.documentElement.getAttribute('data-theme') === 'dark';
-  const gridClr   = () => isDarkFn() ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  const lblClr    = () => isDarkFn() ? '#64748b' : '#6b7280';
-  const tipDefs   = () => ({
-    backgroundColor: isDarkFn() ? '#1e1e2e' : '#fff',
-    titleColor:  isDarkFn() ? '#e2e8f0' : '#0f172a',
-    bodyColor:   isDarkFn() ? '#94a3b8' : '#374151',
-    borderColor: isDarkFn() ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
-    borderWidth: 1, padding: 10,
-  });
-
-  // Streak calculation
-  let currentStreak = 0, longestStreak = 0, run = 0;
-  for (let i = sparkData.length - 1; i >= 0; i--) {
-    if (sparkData[i]) currentStreak++; else break;
-  }
-  for (let i = 0; i < sparkData.length; i++) {
-    if (sparkData[i]) { run++; longestStreak = Math.max(longestStreak, run); } else run = 0;
-  }
-  const badge = document.getElementById('streak-badge');
-  if (badge) {
-    if (currentStreak >= 2) {
-      badge.textContent = '🔥 ' + currentStreak + '-day streak';
-    } else if (longestStreak >= 3) {
-      badge.textContent = 'Best: ' + longestStreak + ' days';
-      badge.style.background = isDarkFn() ? 'rgba(255,255,255,0.06)' : '#F3F4F6';
-      badge.style.color = isDarkFn() ? '#94A3B8' : '#6B7280';
-    }
-  }
-
-  const sparkChart = new Chart(document.getElementById('spark-chart'), {
+  new Chart(document.getElementById('spark-chart'), {
     type: 'bar',
-    data: {
-      labels: sparkLabels,
-      datasets: [{
-        label: 'Attendance',
-        data: sparkData,
-        backgroundColor: sparkData.map((v, i) =>
-          i === sparkData.length - 1
-            ? (v ? '#6366f1' : 'rgba(99,102,241,0.25)')
-            : (v ? 'rgba(99,102,241,0.7)' : 'rgba(99,102,241,0.12)')
-        ),
-        borderColor: sparkData.map((v, i) =>
-          i === sparkData.length - 1 ? '#6366f1' : (v ? '#6366f1' : 'transparent')
-        ),
-        borderWidth: 1.5,
-        borderRadius: 6,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...tipDefs(),
-          callbacks: {
-            title: ctx => sparkLabels[ctx[0].dataIndex],
-            label: ctx => ctx.raw ? ' ✓ Checked in' : ' ✗ Absent',
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: gridClr() },
-          ticks: {
-            color: lblClr(),
-            font: { size: 9 },
-            maxRotation: 0,
-            callback: (val, index) =>
-              (index % 7 === 0 || index === sparkData.length - 1) ? sparkLabels[index] : '',
-          }
-        },
-        y: {
-          beginAtZero: true,
-          max: 1,
-          grid: { color: gridClr() },
-          ticks: {
-            color: lblClr(),
-            font: { size: 9 },
-            stepSize: 1,
-            callback: v => v === 1 ? 'In' : v === 0 ? 'Out' : '',
-          }
-        }
-      }
+    data: { labels: sparkLabels, datasets: [{ data: sparkData,
+      backgroundColor: sparkData.map((v,i) => i === sparkData.length-1 ? (v?'#1ed760':'rgba(30,215,96,0.2)') : (v?'rgba(30,215,96,0.6)':'rgba(30,215,96,0.1)')),
+      borderRadius: 4, borderSkipped: false }] },
+    options: { responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{display:false}, tooltip:{...tipDefs(), callbacks:{title:ctx=>sparkLabels[ctx[0].dataIndex], label:ctx=>ctx.raw?'✓ Checked in':'✗ Absent'}} },
+      scales:{ x:{grid:{color:gridClr()},ticks:{color:lblClr(),font:{size:9},maxRotation:0,callback:(v,i)=>(i%7===0||i===sparkData.length-1)?sparkLabels[i]:''}}, y:{beginAtZero:true,max:1,grid:{color:gridClr()},ticks:{color:lblClr(),font:{size:9},stepSize:1,callback:v=>v===1?'In':v===0?'Out':''}} }
     }
   });
-
-  // Re-apply colors when theme toggles
-  const themeToggleBtn = document.getElementById('theme-toggle');
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-      setTimeout(() => {
-        sparkChart.data.datasets[0].backgroundColor = sparkData.map((v, i) =>
-          i === sparkData.length - 1
-            ? (v ? '#6366f1' : 'rgba(99,102,241,0.25)')
-            : (v ? 'rgba(99,102,241,0.7)' : 'rgba(99,102,241,0.12)')
-        );
-        sparkChart.options.scales.x.grid.color = gridClr();
-        sparkChart.options.scales.x.ticks.color = lblClr();
-        sparkChart.options.scales.y.grid.color = gridClr();
-        sparkChart.options.scales.y.ticks.color = lblClr();
-        sparkChart.update();
-        if (badge && currentStreak >= 2) {
-          badge.style.background = isDarkFn() ? 'rgba(99,102,241,0.2)' : '#EEF2FF';
-          badge.style.color = isDarkFn() ? '#818CF8' : '#4F46E5';
-        }
-      }, 50);
-    });
-  }
 })();
 
-/* ── Chart 2: 6-month payment bar ── */
 (function() {
   const payLabels  = {{ pay_labels|safe }};
   const payAmounts = {{ pay_amounts|safe }};
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6';
-  const labelColor = isDark ? '#64748B' : '#9CA3AF';
-
   new Chart(document.getElementById('pay-chart'), {
     type: 'bar',
-    data: {
-      labels: payLabels,
-      datasets: [{
-        data: payAmounts,
-        backgroundColor: payAmounts.map((v, i) =>
-          i === payAmounts.length - 1
-            ? '#6366F1'
-            : (isDark ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.25)')
-        ),
-        borderRadius: 3,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => '₹' + ctx.raw.toLocaleString('en-IN'),
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: labelColor, font: { size: 10 } }
-        },
-        y: { display: false, beginAtZero: true }
-      }
+    data: { labels: payLabels, datasets: [{ data: payAmounts,
+      backgroundColor: payAmounts.map((v,i) => i===payAmounts.length-1?'#1ed760':'rgba(30,215,96,0.3)'),
+      borderRadius: 3, borderSkipped: false }] },
+    options: { responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>'₹'+ctx.raw.toLocaleString('en-IN')}} },
+      scales:{ x:{grid:{display:false},ticks:{color:lblClr(),font:{size:10}}}, y:{display:false,beginAtZero:true} }
     }
   });
 })();
 
-/* Tabs */
 document.querySelectorAll('.dp-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.dp-tab').forEach(t => t.classList.remove('on'));
@@ -562,24 +255,32 @@ document.querySelectorAll('.dp-tab').forEach(tab => {
   });
 });
 
-/* Admin modals */
 {% if user.profile.role == 'admin' %}
 document.addEventListener('DOMContentLoaded', function() {
-  var suspendBtn = document.getElementById('suspend-btn');
-  var deleteBtn  = document.getElementById('delete-member-btn');
+  const suspendBtn = document.getElementById('suspend-btn');
+  const deleteBtn  = document.getElementById('delete-member-btn');
   if (suspendBtn) {
     suspendBtn.addEventListener('click', function() {
-      var name = this.dataset.name, action = this.dataset.action;
+      const name = this.dataset.name, action = this.dataset.action;
       if (action === 'suspend') {
-        showModal({ title:'Suspend '+name+'?', body:'They will not be able to check in until reactivated.', icon:'🚫', iconBg:'background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2)', confirmText:'Yes, Suspend', confirmStyle:'background:#f97316', onConfirm:function(){ document.getElementById('suspend-form').submit(); } });
+        showModal({ title:'Suspend '+name+'?', body:'They will not be able to check in until reactivated.', icon:'🚫',
+          iconBg:'background:rgba(255,164,43,0.1);border:1px solid rgba(255,164,43,0.3)',
+          confirmText:'Yes, Suspend', confirmStyle:'background:#ffa42b;color:#000;border-radius:9999px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer',
+          onConfirm:()=>document.getElementById('suspend-form').submit() });
       } else {
-        showModal({ title:'Reactivate '+name+'?', body:'Their status will be restored based on their expiry date.', icon:'✅', iconBg:'background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)', confirmText:'Yes, Reactivate', confirmStyle:'background:#10b981', onConfirm:function(){ document.getElementById('suspend-form').submit(); } });
+        showModal({ title:'Reactivate '+name+'?', body:'Their status will be restored based on their expiry date.', icon:'✅',
+          iconBg:'background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3)',
+          confirmText:'Yes, Reactivate', confirmStyle:'background:#1ed760;color:#000;border-radius:9999px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer',
+          onConfirm:()=>document.getElementById('suspend-form').submit() });
       }
     });
   }
   if (deleteBtn) {
     deleteBtn.addEventListener('click', function() {
-      showModal({ title:'Delete '+this.dataset.name+'?', body:'This permanently deletes the member and all their records. Cannot be undone.', icon:'⚠️', iconBg:'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)', confirmText:'Yes, Delete', confirmStyle:'background:#ef4444', onConfirm:function(){ document.getElementById('delete-member-form').submit(); } });
+      showModal({ title:'Delete '+this.dataset.name+'?', body:'This permanently deletes the member and all their records. Cannot be undone.', icon:'⚠️',
+        iconBg:'background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3)',
+        confirmText:'Yes, Delete', confirmStyle:'background:#f3727f;color:#000;border-radius:9999px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer',
+        onConfirm:()=>document.getElementById('delete-member-form').submit() });
     });
   }
 });
