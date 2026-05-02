@@ -21,6 +21,7 @@ class Member(models.Model):
     full_name = models.CharField(max_length=200)
     phone = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
+    address = models.TextField(blank=True, default='')
     photo = models.ImageField(upload_to='member_photos/', blank=True, null=True)
     face_descriptor = models.JSONField(null=True, blank=True)
     join_date = models.DateField()

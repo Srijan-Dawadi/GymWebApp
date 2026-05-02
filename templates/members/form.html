@@ -32,7 +32,11 @@
         <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5" style="color:var(--text3)">
           {{ field.label }}{% if field.field.required %} <span style="color:#ef4444">*</span>{% endif %}
         </label>
-        {% if field.field.widget.input_type == 'select' %}
+        {% if field.html_name == 'address' %}
+        <textarea name="{{ field.html_name }}" rows="3"
+          class="w-full glow-input {% if field.errors %}!border-red-400{% endif %}"
+          placeholder="Street, City, State">{{ field.value|default:'' }}</textarea>
+        {% elif field.field.widget.input_type == 'select' %}
         <select name="{{ field.html_name }}" class="w-full glow-input">
           {% for val, label in field.field.choices %}
           <option value="{{ val }}" {% if field.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
@@ -50,16 +54,6 @@
       {% endif %}
       {% endfor %}
 
-      <div class="flex gap-3 pt-2">
-        <button type="submit" id="submit-btn" disabled
-          class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
-          Save Member
-        </button>
-        <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
-          Cancel
-        </a>
-      </div>
     </form>
   </div>
 
@@ -173,6 +167,18 @@
       style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#dc2626">
       ❌ Please complete face enrollment before saving.
     </div>
+  </div>
+
+  <!-- Save / Cancel buttons -->
+  <div class="flex gap-3">
+    <button type="submit" form="member-form" id="submit-btn" disabled
+      class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+      style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+      Save Member
+    </button>
+    <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
+      Cancel
+    </a>
   </div>
 
 </div>

@@ -5,9 +5,10 @@ from .models import Member
 class MemberForm(forms.ModelForm):
     class Meta:
         model = Member
-        fields = ['full_name', 'phone', 'email', 'photo', 'join_date', 'membership_plan']
+        fields = ['full_name', 'phone', 'email', 'address', 'photo', 'join_date', 'membership_plan']
         widgets = {
             'join_date': forms.DateInput(attrs={'type': 'date'}),
+            'address':   forms.Textarea(attrs={'rows': 3}),
         }
 
     def clean_photo(self):
