@@ -78,30 +78,38 @@
     font-size: 12px; font-weight: 700; color: #b3b3b3;
   }
 
-  /* Staff status quick-select — native select, no custom dropdown */
-  .status-quick-select {
-    appearance: auto;
-    background: #1f1f1f;
-    color: #b3b3b3;
-    border: 1px solid #282828;
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    outline: none;
-    transition: border-color 0.15s, color 0.15s;
+  /* Staff status themed dropdown */
+  .staff-status-trigger {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700;
+    cursor: pointer; user-select: none; border: 1px solid;
+    transition: opacity 0.15s;
   }
-  .status-quick-select:hover { border-color: #4d4d4d; color: #ffffff; }
-  .status-quick-select[data-current="good"]        { color: #1ed760; border-color: rgba(30,215,96,0.3); }
-  .status-quick-select[data-current="maintenance"] { color: #ffa42b; border-color: rgba(255,164,43,0.3); }
-  .status-quick-select[data-current="out_of_service"] { color: #f3727f; border-color: rgba(243,114,127,0.3); }
+  .staff-status-trigger:hover { opacity: 0.8; }
+  .staff-status-trigger.status-good        { background: rgba(30,215,96,0.1);  color: #1ed760; border-color: rgba(30,215,96,0.3); }
+  .staff-status-trigger.status-maintenance { background: rgba(255,164,43,0.1); color: #ffa42b; border-color: rgba(255,164,43,0.3); }
+  .staff-status-trigger.status-out_of_service { background: rgba(243,114,127,0.1); color: #f3727f; border-color: rgba(243,114,127,0.3); }
+  .staff-status-trigger.open svg { transform: rotate(180deg); }
+
+  .staff-status-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0;
+    background: #282828; border: 1px solid #4d4d4d; border-radius: 8px;
+    overflow: hidden; z-index: 50; min-width: 140px;
+    box-shadow: rgba(0,0,0,0.5) 0px 8px 24px;
+    animation: dropIn 0.15s ease;
+  }
+  .staff-status-dropdown.open { display: block; }
+  .staff-status-option {
+    padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    color: #b3b3b3; transition: background 0.1s, color 0.1s;
+  }
+  .staff-status-option:hover { background: #1f1f1f; color: #ffffff; }
 </style>
 
 <!-- Stats row -->
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
   <div class="stat-card">
-    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:6px">Total SKUs</p>
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:6px">Equipment Types</p>
     <p style="font-size:32px;font-weight:700;color:#ffffff">{{ total_items }}</p>
   </div>
   <div class="stat-card">
@@ -203,14 +211,25 @@
               </button>
             </div>
             {% else %}
-            {# Staff: status-only inline form #}
-            <form method="post" action="/inventory/{{ item.pk }}/status/" style="display:inline">
+            {# Staff: themed status dropdown that auto-submits #}
+            <form method="post" action="/inventory/{{ item.pk }}/status/" class="staff-status-form" style="display:inline-block;position:relative">
               {% csrf_token %}
-              <select name="status" onchange="this.form.submit()" class="status-quick-select" data-current="{{ item.status }}" data-upgraded="1">
-                {% for val, label in status_choices %}
-                <option value="{{ val }}" {% if item.status == val %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
+              <input type="hidden" name="status" class="staff-status-value" value="{{ item.status }}" />
+              <div class="staff-status-trigger status-{{ item.status }}" tabindex="0"
+                onclick="toggleStaffDropdown(this)"
+                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleStaffDropdown(this)}">
+                <span class="staff-status-label">
+                  {% if item.status == 'good' %}Good
+                  {% elif item.status == 'maintenance' %}Maintenance
+                  {% else %}Out of Service{% endif %}
+                </span>
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;transition:transform 0.2s"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+              <div class="staff-status-dropdown">
+                <div class="staff-status-option" data-value="good" onclick="selectStaffStatus(this)">Good</div>
+                <div class="staff-status-option" data-value="maintenance" onclick="selectStaffStatus(this)">Maintenance</div>
+                <div class="staff-status-option" data-value="out_of_service" onclick="selectStaffStatus(this)">Out of Service</div>
+              </div>
             </form>
             {% endif %}
           </td>
@@ -520,8 +539,53 @@ function getCookie(name) {
   return match ? decodeURIComponent(match[1]) : '';
 }
 
+// ── Staff status dropdown ────────────────────────────────────────────────────
+function toggleStaffDropdown(trigger) {
+  const dropdown = trigger.nextElementSibling;
+  const isOpen = dropdown.classList.contains('open');
+  // close all others first
+  closeAllStaffDropdowns();
+  if (!isOpen) {
+    dropdown.classList.add('open');
+    trigger.classList.add('open');
+  }
+}
+
+function closeAllStaffDropdowns() {
+  document.querySelectorAll('.staff-status-dropdown.open').forEach(d => {
+    d.classList.remove('open');
+    d.previousElementSibling.classList.remove('open');
+  });
+}
+
+function selectStaffStatus(option) {
+  const dropdown = option.closest('.staff-status-dropdown');
+  const trigger  = dropdown.previousElementSibling;
+  const form     = option.closest('.staff-status-form');
+  const val      = option.dataset.value;
+
+  // Update hidden input
+  form.querySelector('.staff-status-value').value = val;
+
+  // Update trigger appearance
+  trigger.className = 'staff-status-trigger status-' + val;
+  trigger.querySelector('.staff-status-label').textContent = option.textContent.trim();
+
+  // Close dropdown
+  dropdown.classList.remove('open');
+  trigger.classList.remove('open');
+
+  // Submit
+  form.submit();
+}
+
+// Close staff dropdowns when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.staff-status-form')) closeAllStaffDropdowns();
+});
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeAddModal(); closeEditModal(); }
+  if (e.key === 'Escape') { closeAddModal(); closeEditModal(); closeAllStaffDropdowns(); }
 });
 </script>
 {% endblock %}
