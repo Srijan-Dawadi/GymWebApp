@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.views import View
 from django.db.models import Q, Sum
 
+from accounts.mixins import AdminRequiredMixin
 from .models import InventoryItem, EquipmentCategory, EquipmentStatus
 
 
@@ -13,20 +14,8 @@ class InventoryView(LoginRequiredMixin, View):
     login_url = '/accounts/login/'
 
     def get(self, request):
-        category_filter = request.GET.get('category', '')
-        status_filter = request.GET.get('status', '')
-        q = request.GET.get('q', '').strip()
-
+        # Always load all items — filtering is done client-side
         items = InventoryItem.objects.all()
-
-        if category_filter:
-            items = items.filter(category=category_filter)
-        if status_filter:
-            items = items.filter(status=status_filter)
-        if q:
-            items = items.filter(
-                Q(name__icontains=q) | Q(description__icontains=q)
-            )
 
         # Summary stats
         total_items = InventoryItem.objects.count()
@@ -35,15 +24,11 @@ class InventoryView(LoginRequiredMixin, View):
             status__in=[EquipmentStatus.MAINTENANCE, EquipmentStatus.OUT_OF_SERVICE]
         ).count()
 
-        # Group items by category for display
-        categories = EquipmentCategory.choices  # list of (value, label)
+        categories = EquipmentCategory.choices
 
         context = {
             'items': items,
             'categories': categories,
-            'category_filter': category_filter,
-            'status_filter': status_filter,
-            'q': q,
             'total_items': total_items,
             'total_qty': total_qty,
             'needs_attention': needs_attention,
@@ -52,7 +37,7 @@ class InventoryView(LoginRequiredMixin, View):
         return render(request, 'Inventory/inventory.html', context)
 
 
-class InventoryAddView(LoginRequiredMixin, View):
+class InventoryAddView(AdminRequiredMixin, View):
     login_url = '/accounts/login/'
 
     def post(self, request):
@@ -88,7 +73,7 @@ class InventoryAddView(LoginRequiredMixin, View):
         return redirect('/inventory/')
 
 
-class InventoryEditView(LoginRequiredMixin, View):
+class InventoryEditView(AdminRequiredMixin, View):
     login_url = '/accounts/login/'
 
     def post(self, request, pk):
@@ -106,7 +91,7 @@ class InventoryEditView(LoginRequiredMixin, View):
         return redirect('/inventory/')
 
 
-class InventoryDeleteView(LoginRequiredMixin, View):
+class InventoryDeleteView(AdminRequiredMixin, View):
     login_url = '/accounts/login/'
 
     def post(self, request, pk):
@@ -147,3 +132,20 @@ class InventorySearchView(LoginRequiredMixin, View):
             for item in items
         ]
         return JsonResponse({'results': results, 'count': len(results)})
+
+
+class InventoryStatusView(LoginRequiredMixin, View):
+    """Staff and admin can update the status of an item."""
+    login_url = '/accounts/login/'
+
+    def post(self, request, pk):
+        item = get_object_or_404(InventoryItem, pk=pk)
+        new_status = request.POST.get('status', '').strip()
+        valid_statuses = [s[0] for s in EquipmentStatus.choices]
+        if new_status not in valid_statuses:
+            messages.error(request, 'Invalid status value.')
+            return redirect('/inventory/')
+        item.status = new_status
+        item.save(update_fields=['status', 'updated_at'])
+        messages.success(request, f'"{item.name}" status updated to {item.status_label}.')
+        return redirect('/inventory/')

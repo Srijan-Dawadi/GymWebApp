@@ -3,33 +3,6 @@ from django.db import migrations
 
 EQUIPMENT = [
     # ── Dumbbells ──────────────────────────────────────────────────────────────
-    # Hex rubber dumbbells (full range)
-    {'name': 'Hex Rubber Dumbbell 1 kg',   'category': 'dumbbells', 'weight_kg': 1,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 2 kg',   'category': 'dumbbells', 'weight_kg': 2,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 3 kg',   'category': 'dumbbells', 'weight_kg': 3,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 4 kg',   'category': 'dumbbells', 'weight_kg': 4,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 5 kg',   'category': 'dumbbells', 'weight_kg': 5,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 6 kg',   'category': 'dumbbells', 'weight_kg': 6,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 7 kg',   'category': 'dumbbells', 'weight_kg': 7,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 8 kg',   'category': 'dumbbells', 'weight_kg': 8,    'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 10 kg',  'category': 'dumbbells', 'weight_kg': 10,   'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 12 kg',  'category': 'dumbbells', 'weight_kg': 12,   'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 14 kg',  'category': 'dumbbells', 'weight_kg': 14,   'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 16 kg',  'category': 'dumbbells', 'weight_kg': 16,   'quantity': 4, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 18 kg',  'category': 'dumbbells', 'weight_kg': 18,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 20 kg',  'category': 'dumbbells', 'weight_kg': 20,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 22 kg',  'category': 'dumbbells', 'weight_kg': 22,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 24 kg',  'category': 'dumbbells', 'weight_kg': 24,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 26 kg',  'category': 'dumbbells', 'weight_kg': 26,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 28 kg',  'category': 'dumbbells', 'weight_kg': 28,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 30 kg',  'category': 'dumbbells', 'weight_kg': 30,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 32 kg',  'category': 'dumbbells', 'weight_kg': 32,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 34 kg',  'category': 'dumbbells', 'weight_kg': 34,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 36 kg',  'category': 'dumbbells', 'weight_kg': 36,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 38 kg',  'category': 'dumbbells', 'weight_kg': 38,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 40 kg',  'category': 'dumbbells', 'weight_kg': 40,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 45 kg',  'category': 'dumbbells', 'weight_kg': 45,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
-    {'name': 'Hex Rubber Dumbbell 50 kg',  'category': 'dumbbells', 'weight_kg': 50,   'quantity': 2, 'status': 'good', 'description': 'Rubber hex dumbbell pair'},
     # Adjustable dumbbells
     {'name': 'Adjustable Dumbbell Set (2.5–25 kg)', 'category': 'dumbbells', 'weight_kg': None, 'quantity': 2, 'status': 'good', 'description': 'Dial-select adjustable dumbbell, 2.5 kg to 25 kg'},
     {'name': 'Adjustable Dumbbell Set (5–52.5 kg)', 'category': 'dumbbells', 'weight_kg': None, 'quantity': 2, 'status': 'good', 'description': 'Dial-select adjustable dumbbell, 5 kg to 52.5 kg'},

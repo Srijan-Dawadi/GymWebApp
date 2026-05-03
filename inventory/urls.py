@@ -6,5 +6,6 @@ urlpatterns = [
     path('add/', views.InventoryAddView.as_view(), name='inventory_add'),
     path('<int:pk>/edit/', views.InventoryEditView.as_view(), name='inventory_edit'),
     path('<int:pk>/delete/', views.InventoryDeleteView.as_view(), name='inventory_delete'),
+    path('<int:pk>/status/', views.InventoryStatusView.as_view(), name='inventory_status'),
     path('search/', views.InventorySearchView.as_view(), name='inventory_search'),
 ]
