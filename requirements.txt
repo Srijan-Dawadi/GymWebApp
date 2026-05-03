@@ -1,11 +1,18 @@
-# Core Django dependencies (used on both Render and local)
+# ── Django core ───────────────────────────────────────────────────
 Django==4.2.16
 django-environ==0.11.2
 Pillow==10.4.0
 whitenoise==6.7.0
 gunicorn==22.0.0
 psycopg2-binary==2.9.11
-tzdata==2026.1
 openpyxl==3.1.5
 asgiref==3.11.1
 sqlparse==0.5.5
+tzdata==2026.1
+
+# ── Face recognition ──────────────────────────────────────────────
+# Large packages — first install may take 3–5 minutes
+insightface==0.7.3
+onnxruntime==1.24.1
+opencv-python==4.10.0.84
+numpy==1.26.4
