@@ -100,26 +100,34 @@
 </div>
 
 <!-- Charts -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+<div class="dp-chart-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
   <div class="dp-card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <span style="font-size:13px;font-weight:700;color:#ffffff">Attendance — last 30 days</span>
       <span style="font-size:11px;color:#b3b3b3">{{ sessions_30d }}/30 days</span>
     </div>
-    <div style="height:90px"><canvas id="spark-chart"></canvas></div>
+    <div style="height:80px"><canvas id="spark-chart"></canvas></div>
   </div>
   <div class="dp-card" style="padding:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <span style="font-size:13px;font-weight:700;color:#ffffff">Payments — last 6 months</span>
       <span style="font-size:11px;color:#b3b3b3">₹{{ total_paid }} total</span>
     </div>
-    <div style="height:56px"><canvas id="pay-chart"></canvas></div>
+    <div style="height:80px"><canvas id="pay-chart"></canvas></div>
   </div>
 </div>
-<style>@media(max-width:600px){#chart-row{grid-template-columns:1fr !important}}</style>
+<style>
+  @media(max-width:768px) {
+    /* Stack chart cards vertically on mobile */
+    .dp-chart-grid { grid-template-columns: 1fr !important; }
+    /* Stack sidebar + main vertically on mobile */
+    .dp-layout { flex-direction: column !important; }
+    .dp-layout > div:first-child { width: 100% !important; }
+  }
+</style>
 
 <!-- Two-column layout -->
-<div style="display:flex;gap:20px;align-items:flex-start">
+<div class="dp-layout" style="display:flex;gap:20px;align-items:flex-start">
   <!-- Left sidebar -->
   <div style="width:240px;flex-shrink:0">
     <div class="dp-card">
@@ -127,7 +135,7 @@
         {% if member.photo %}
         <img src="{{ member.photo.url }}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block" alt="" />
         {% else %}
-        <div id="avatar-circle" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#000;font-size:26px;font-weight:700;margin:0 auto 12px;background:#1ed760">{{ member.full_name|first }}</div>
+        <div id="avatar-circle" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:700;margin:0 auto 12px">{{ member.full_name|first }}</div>
         {% endif %}
         <p style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:8px">{{ member.full_name }}</p>
         {% if member.status == 'active' %}<span class="badge-active">Active</span>
@@ -208,7 +216,7 @@
 </div>
 
 <script>
-const COLORS = ['#1ed760','#1db954','#539df5','#ffa42b','#f3727f','#b3b3b3'];
+const COLORS = ['#6366f1','#0891b2','#d97706','#7c3aed','#0d9488','#dc2626','#9333ea','#c2410c'];
 const av = document.getElementById('avatar-circle');
 if (av) { const c = (av.textContent.trim().toUpperCase().charCodeAt(0) - 65 + COLORS.length) % COLORS.length; av.style.background = COLORS[c]; }
 

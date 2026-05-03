@@ -8,19 +8,18 @@
 <style>
   .stat-card {
     background: #181818;
-    border: 1px solid #282828;
+    border: 1px solid #333333;
     border-radius: 8px;
     padding: 20px;
-    transition: background 0.15s ease;
   }
   .stat-card:hover { background: #1f1f1f; }
-  .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #b3b3b3; margin-bottom: 8px; }
+  .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #8a8a8a; margin-bottom: 8px; }
   .stat-num   { font-size: 32px; font-weight: 700; color: #ffffff; line-height: 1; }
-  .stat-sub   { font-size: 12px; color: #b3b3b3; margin-top: 4px; }
+  .stat-sub   { font-size: 12px; color: #cbcbcb; margin-top: 4px; }
 
   .quick-btn {
     background: #1f1f1f;
-    border: 1px solid #282828;
+    border: 1px solid #333333;
     border-radius: 9999px;
     color: #ffffff;
     font-size: 14px;
@@ -35,32 +34,32 @@
     text-decoration: none;
     transition: background 0.15s ease, border-color 0.15s ease;
   }
-  .quick-btn:hover { background: #282828; border-color: #4d4d4d; }
+  .quick-btn:hover { background: #2a2a2a; border-color: #4d4d4d; }
 
   .panel-card {
     background: #181818;
-    border: 1px solid #282828;
+    border: 1px solid #333333;
     border-radius: 8px;
     overflow: hidden;
   }
   .panel-title { font-size: 16px; font-weight: 700; color: #ffffff; }
-  .panel-badge { background: #1f1f1f; color: #b3b3b3; font-size: 12px; border-radius: 9999px; padding: 2px 10px; font-weight: 700; }
+  .panel-badge { background: #1f1f1f; color: #cbcbcb; font-size: 12px; border-radius: 9999px; padding: 2px 10px; font-weight: 700; }
 
   .heatmap-cell { width: 26px; height: 26px; border-radius: 2px; cursor: pointer; position: relative; transition: opacity 0.15s; }
   .heatmap-cell:hover { opacity: 0.75; }
   .heatmap-tooltip {
     position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-    background: #282828; color: #ffffff; font-size: 11px; padding: 4px 8px; border-radius: 4px;
+    background: #2a2a2a; color: #ffffff; font-size: 11px; padding: 4px 8px; border-radius: 4px;
     white-space: nowrap; pointer-events: none; z-index: 50; display: none;
     border: 1px solid #4d4d4d;
   }
   .heatmap-cell:hover .heatmap-tooltip { display: block; }
 
-  .seg-control { display: flex; gap: 2px; padding: 3px; background: #282828; border-radius: 9999px; }
+  .seg-control { display: flex; gap: 2px; padding: 3px; background: #2a2a2a; border-radius: 9999px; }
   .seg-btn {
     border-radius: 9999px; font-size: 12px; padding: 4px 12px;
     font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px;
-    border: none; cursor: pointer; background: transparent; color: #b3b3b3;
+    border: none; cursor: pointer; background: transparent; color: #8a8a8a;
     transition: all 0.15s ease;
   }
   .seg-btn.active { background: #1f1f1f; color: #ffffff; }
@@ -81,7 +80,7 @@
 <!-- Greeting -->
 <div class="mb-6">
   <h2 style="font-size:24px;font-weight:700;color:#ffffff">Good to see you, {{ user.username }} 👋</h2>
-  <p style="font-size:14px;color:#b3b3b3;margin-top:4px">{{ today }}</p>
+  <p style="font-size:14px;color:#cbcbcb;margin-top:4px">{{ today }}</p>
 </div>
 
 <!-- Stat cards -->
@@ -151,25 +150,25 @@
 <div class="panel-card p-5 mb-5">
   <div class="flex items-center justify-between mb-4">
     <p class="panel-title">Monthly Attendance</p>
-    <p style="font-size:12px;color:#b3b3b3" id="heatmap-month-label"></p>
+    <p style="font-size:12px;color:#cbcbcb" id="heatmap-month-label"></p>
   </div>
   <div class="grid gap-1 mb-1" style="grid-template-columns:repeat(7,26px)">
-    <div style="font-size:10px;color:#6b6b6b;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Mon</div>
-    <div style="font-size:10px;color:#6b6b6b;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Tue</div>
-    <div style="font-size:10px;color:#6b6b6b;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Wed</div>
-    <div style="font-size:10px;color:#6b6b6b;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Thu</div>
-    <div style="font-size:10px;color:#6b6b6b;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Fri</div>
-    <div style="font-size:10px;color:#6b6b6b;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Sat</div>
-    <div style="font-size:10px;color:#6b6b6b;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Sun</div>
+    <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Mon</div>
+    <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Tue</div>
+    <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Wed</div>
+    <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Thu</div>
+    <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Fri</div>
+    <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Sat</div>
+    <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Sun</div>
   </div>
   <div id="heatmap-grid" class="grid gap-1" style="grid-template-columns:repeat(7,26px)"></div>
   <div class="flex items-center justify-end gap-2 mt-3">
-    <span style="font-size:11px;color:#6b6b6b">Less</span>
-    <div style="width:12px;height:12px;border-radius:2px;background:#282828"></div>
+    <span style="font-size:11px;color:#8a8a8a">Less</span>
+    <div style="width:12px;height:12px;border-radius:2px;background:#333333"></div>
     <div style="width:12px;height:12px;border-radius:2px;background:rgba(30,215,96,0.2)"></div>
     <div style="width:12px;height:12px;border-radius:2px;background:rgba(30,215,96,0.5)"></div>
     <div style="width:12px;height:12px;border-radius:2px;background:#1ed760"></div>
-    <span style="font-size:11px;color:#6b6b6b">More</span>
+    <span style="font-size:11px;color:#8a8a8a">More</span>
   </div>
 </div>
 
@@ -195,21 +194,21 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span style="width:10px;height:10px;border-radius:2px;background:#1ed760;display:inline-block"></span>
-          <span style="font-size:13px;color:#b3b3b3">Active</span>
+          <span style="font-size:13px;color:#cbcbcb">Active</span>
         </div>
         <span style="font-size:13px;font-weight:700;color:#ffffff">{{ active_members }}</span>
       </div>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span style="width:10px;height:10px;border-radius:2px;background:#f3727f;display:inline-block"></span>
-          <span style="font-size:13px;color:#b3b3b3">Expired</span>
+          <span style="font-size:13px;color:#cbcbcb">Expired</span>
         </div>
         <span style="font-size:13px;font-weight:700;color:#ffffff">{{ expired_members }}</span>
       </div>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span style="width:10px;height:10px;border-radius:2px;background:#4d4d4d;display:inline-block"></span>
-          <span style="font-size:13px;color:#b3b3b3">Suspended</span>
+          <span style="font-size:13px;color:#cbcbcb">Suspended</span>
         </div>
         <span style="font-size:13px;font-weight:700;color:#ffffff">{{ suspended_members }}</span>
       </div>
@@ -222,7 +221,7 @@
   <div class="flex items-center justify-between mb-4">
     <div>
       <p class="panel-title">Revenue Trend</p>
-      <p style="font-size:12px;color:#b3b3b3;margin-top:2px">{{ today|date:"F Y" }} · Rs. {{ monthly_revenue }} this month</p>
+      <p style="font-size:12px;color:#cbcbcb;margin-top:2px">{{ today|date:"F Y" }} · Rs. {{ monthly_revenue }} this month</p>
     </div>
   </div>
   <div style="height:160px"><canvas id="revenueChart"></canvas></div>
@@ -233,17 +232,17 @@
 
   <!-- Expiring soon -->
   <div class="panel-card">
-    <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid #282828">
+    <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid #333333">
       <p class="panel-title">Expiring in 7 Days</p>
       <span class="panel-badge">{{ expiring_soon|length }}</span>
     </div>
     {% for member in expiring_soon %}
-    <a href="/members/{{ member.pk }}/" class="flex items-center justify-between px-5 py-3 transition-colors" style="border-bottom:1px solid #282828" onmouseover="this.style.background='#1f1f1f'" onmouseout="this.style.background=''">
+    <a href="/members/{{ member.pk }}/" class="flex items-center justify-between px-5 py-3 transition-colors" style="border-bottom:1px solid #333333" onmouseover="this.style.background='#1f1f1f'" onmouseout="this.style.background=''">
       <div class="flex items-center gap-3 min-w-0">
         {% if member.photo %}
         <img src="{{ member.photo.url }}" class="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="" />
         {% else %}
-        <div class="w-7 h-7 rounded-full flex items-center justify-center text-black text-xs font-bold flex-shrink-0" style="background:#1ed760">{{ member.full_name|first }}</div>
+        <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:#6366f1">{{ member.full_name|first }}</div>
         {% endif %}
         <span style="font-size:13px;font-weight:700;color:#ffffff" class="truncate">{{ member.full_name }}</span>
       </div>
@@ -251,38 +250,38 @@
     </a>
     {% empty %}
     <div class="px-5 py-8 text-center">
-      <p style="font-size:13px;color:#b3b3b3">No memberships expiring soon 🎉</p>
+      <p style="font-size:13px;color:#cbcbcb">No memberships expiring soon 🎉</p>
     </div>
     {% endfor %}
   </div>
 
   <!-- Recent payments -->
   <div class="panel-card">
-    <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid #282828">
+    <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid #333333">
       <p class="panel-title">Recent Payments</p>
       <a href="/billing/payments/" style="font-size:12px;color:#1ed760;font-weight:700;text-decoration:none">View all →</a>
     </div>
     {% for payment in recent_payments %}
-    <div class="flex items-center justify-between px-5 py-3" style="border-bottom:1px solid #282828">
+    <div class="flex items-center justify-between px-5 py-3" style="border-bottom:1px solid #333333">
       <div class="min-w-0">
         <p style="font-size:13px;font-weight:700;color:#ffffff" class="truncate">{{ payment.member.full_name }}</p>
         <div class="flex items-center gap-2 mt-0.5">
-          <span style="font-size:11px;color:#b3b3b3">{{ payment.date_paid }}</span>
-          <span style="font-size:11px;background:rgba(30,215,96,0.1);color:#1ed760;border-radius:9999px;padding:1px 8px;font-weight:700">{{ payment.get_payment_method_display }}</span>
+          <span style="font-size:11px;color:#cbcbcb">{{ payment.date_paid }}</span>
+          <span style="font-size:11px;background:#282828;color:#cbcbcb;border-radius:9999px;padding:1px 8px;font-weight:700">{{ payment.get_payment_method_display }}</span>
         </div>
       </div>
       <span style="font-size:13px;font-weight:700;color:#1ed760;flex-shrink:0;margin-left:12px">Rs. {{ payment.amount }}</span>
     </div>
     {% empty %}
     <div class="px-5 py-8 text-center">
-      <p style="font-size:13px;color:#b3b3b3">No payments recorded yet</p>
+      <p style="font-size:13px;color:#cbcbcb">No payments recorded yet</p>
     </div>
     {% endfor %}
   </div>
 
   <!-- Today's check-ins -->
   <div class="panel-card">
-    <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid #282828">
+    <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid #333333">
       <div class="flex items-center gap-2">
         <div class="pulse-dot"></div>
         <p class="panel-title">Today's Check-ins</p>
@@ -290,23 +289,23 @@
       <a href="/attendance/" style="font-size:12px;color:#1ed760;font-weight:700;text-decoration:none">View all →</a>
     </div>
     {% for record in recent_checkins %}
-    <div class="flex items-center justify-between px-5 py-3 checkin-item" style="border-bottom:1px solid #282828">
+    <div class="flex items-center justify-between px-5 py-3 checkin-item" style="border-bottom:1px solid #333333">
       <div class="flex items-center gap-3 min-w-0">
         {% if record.member.photo %}
         <img src="{{ record.member.photo.url }}" class="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="" />
         {% else %}
-        <div class="w-7 h-7 rounded-full flex items-center justify-center text-black font-bold text-xs flex-shrink-0" style="background:#1ed760">{{ record.member.full_name|first }}</div>
+        <div class="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0" style="background:#6366f1">{{ record.member.full_name|first }}</div>
         {% endif %}
         <span style="font-size:13px;font-weight:700;color:#ffffff" class="truncate">{{ record.member.full_name }}</span>
       </div>
       <div class="flex items-center gap-2 flex-shrink-0 ml-2">
-        <span style="font-size:11px;color:#b3b3b3">{{ record.check_in_time|time:"g:i A" }}</span>
-        <span style="font-size:11px;border-radius:9999px;padding:1px 8px;font-weight:700;{% if record.method == 'face' %}background:rgba(30,215,96,0.1);color:#1ed760{% else %}background:#282828;color:#b3b3b3{% endif %}">{{ record.method|capfirst }}</span>
+        <span style="font-size:11px;color:#cbcbcb">{{ record.check_in_time|time:"g:i A" }}</span>
+        <span style="font-size:11px;border-radius:9999px;padding:1px 8px;font-weight:700;{% if record.method == 'face' %}background:rgba(30,215,96,0.1);color:#1ed760{% else %}background:#333333;color:#cbcbcb{% endif %}">{{ record.method|capfirst }}</span>
       </div>
     </div>
     {% empty %}
     <div class="px-5 py-8 text-center">
-      <p style="font-size:13px;color:#b3b3b3">No check-ins today yet</p>
+      <p style="font-size:13px;color:#cbcbcb">No check-ins today yet</p>
     </div>
     {% endfor %}
   </div>
@@ -332,9 +331,9 @@ document.querySelectorAll('.stat-number[data-target]').forEach(el => {
 });
 
 const gridColor = () => 'rgba(255,255,255,0.06)';
-const lblColor  = () => '#6b6b6b';
+const lblColor  = () => '#8a8a8a';
 const tipDefs   = () => ({
-  backgroundColor: '#181818', titleColor: '#ffffff', bodyColor: '#b3b3b3',
+  backgroundColor: '#181818', titleColor: '#ffffff', bodyColor: '#cbcbcb',
   borderColor: '#4d4d4d', borderWidth: 1, padding: 10,
 });
 
@@ -426,7 +425,7 @@ new Chart(donutCtx, {
     counts[d] = Math.max(0, Math.round(base + (Math.random() * 12 - 6)));
   }
   function getColor(n) {
-    if (n === 0) return '#282828';
+    if (n === 0) return '#333333';
     if (n <= 10) return 'rgba(30,215,96,0.2)';
     if (n <= 25) return 'rgba(30,215,96,0.5)';
     return '#1ed760';
