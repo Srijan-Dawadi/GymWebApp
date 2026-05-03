@@ -145,13 +145,11 @@
   <!-- Save / Cancel buttons -->
   <div class="flex gap-3">
     <button type="submit" form="member-form" id="submit-btn" disabled
-      class="action-btn flex-1 py-2.5 text-white font-semibold rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-      style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 15px rgba(99,102,241,0.3)">
+      style="flex:1;padding:10px 32px;background:#1ed760;color:#000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer;opacity:0.4;transition:opacity 0.15s,background 0.15s"
+      onmouseover="if(!this.disabled)this.style.background='#1fdf64'" onmouseout="this.style.background='#1ed760'">
       Save Member
     </button>
-    <a href="/members/" class="action-btn cancel-btn px-5 py-2.5 rounded-xl text-sm font-medium text-center">
-      Cancel
-    </a>
+    <a href="/members/" class="cancel-btn">Cancel</a>
   </div>
 
 </div>
