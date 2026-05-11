@@ -27,7 +27,8 @@ INSTALLED_APPS = [
     'members',
     'billing',
     'attendance',
-    'inventory'
+    'inventory',
+    'cafe',
     # removed: djangorestframework (unused)
 ]
 
