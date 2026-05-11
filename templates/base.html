@@ -277,16 +277,24 @@
       box-shadow: rgba(0,0,0,0.5) 0px 8px 24px;
       border-radius: 8px;
     }
-    .flatpickr-day { color: var(--text3); border-radius: 4px; }
-    .flatpickr-day:hover { background: var(--surface2); border-color: transparent; color: var(--text); }
-    .flatpickr-day.selected { background: var(--accent); border-color: transparent; color: #000; }
-    .flatpickr-day.today { border-color: var(--accent); }
-    .flatpickr-months { color: var(--text); }
-    .flatpickr-month, .flatpickr-weekday { color: var(--text3); fill: var(--text3); }
-    .flatpickr-prev-month svg, .flatpickr-next-month svg { fill: var(--text3); }
-    .flatpickr-current-month input, .flatpickr-current-month .flatpickr-monthDropdown-months { color: var(--text); background: transparent; }
+    .flatpickr-day { color: #ffffff; border-radius: 4px; }
+    .flatpickr-day:hover { background: #2a2a2a; border-color: transparent; color: #ffffff; }
+    .flatpickr-day.selected { background: #1ed760; border-color: transparent; color: #000; }
+    .flatpickr-day.today { border-color: #1ed760; color: #1ed760; }
+    .flatpickr-day.flatpickr-disabled { color: #4d4d4d; }
+    .flatpickr-months { color: #ffffff; background: #1f1f1f; }
+    .flatpickr-month { color: #ffffff; fill: #ffffff; background: #1f1f1f; }
+    .flatpickr-weekday { color: #8a8a8a; fill: #8a8a8a; background: #1f1f1f; }
+    .flatpickr-prev-month, .flatpickr-next-month { color: #ffffff; fill: #ffffff; }
+    .flatpickr-prev-month:hover, .flatpickr-next-month:hover { color: #1ed760; }
+    .flatpickr-prev-month svg, .flatpickr-next-month svg { fill: #ffffff; }
+    .flatpickr-current-month { color: #ffffff; }
+    .flatpickr-current-month input { color: #ffffff; background: transparent; }
+    .flatpickr-current-month .flatpickr-monthDropdown-months { color: #ffffff; background: #1f1f1f; }
+    .flatpickr-current-month .flatpickr-monthDropdown-months option { background: #1f1f1f; color: #ffffff; }
     .numInputWrapper span { border-color: #4d4d4d; }
-    .numInputWrapper span svg { fill: var(--text3); }
+    .numInputWrapper span svg { fill: #ffffff; }
+    .numInputWrapper input { color: #ffffff; }
   </style>
 </head>
 <body class="h-full">
@@ -571,11 +579,14 @@
   window._flatpickrs = [];
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('input[type="date"]').forEach(el => {
+      const existingValue = el.value;
       el.type = 'text';
+      if (existingValue) el.value = existingValue; // preserve value before flatpickr rewrites it
       const fp = flatpickr(el, {
         dateFormat: 'Y-m-d',
         allowInput: true,
         disableMobile: false,
+        defaultDate: existingValue || null,
       });
       window._flatpickrs.push(fp);
     });

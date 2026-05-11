@@ -15,4 +15,4 @@ tzdata==2026.1
 insightface==0.7.3
 onnxruntime==1.24.1
 opencv-python==4.10.0.84
-numpy==1.26.4
+numpy==2.2.5
