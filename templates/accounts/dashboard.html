@@ -45,15 +45,39 @@
   .panel-title { font-size: 16px; font-weight: 700; color: #ffffff; }
   .panel-badge { background: #1f1f1f; color: #cbcbcb; font-size: 12px; border-radius: 9999px; padding: 2px 10px; font-weight: 700; }
 
-  .heatmap-cell { width: 26px; height: 26px; border-radius: 2px; cursor: pointer; position: relative; transition: opacity 0.15s; }
-  .heatmap-cell:hover { opacity: 0.75; }
+  .heatmap-cell {
+    width: 32px;
+    height: 32px;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    transition: transform 0.1s ease;
+    flex-shrink: 0;
+  }
+  .heatmap-cell:hover { transform: scale(1.15); z-index: 10; }
+  .heatmap-cell.today-cell { outline: 2px solid #1ed760; outline-offset: 1px; }
   .heatmap-tooltip {
-    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-    background: #2a2a2a; color: #ffffff; font-size: 11px; padding: 4px 8px; border-radius: 4px;
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    background: #2a2a2a; color: #ffffff; font-size: 11px; padding: 6px 10px; border-radius: 6px;
     white-space: nowrap; pointer-events: none; z-index: 50; display: none;
     border: 1px solid #4d4d4d;
+    box-shadow: rgba(0,0,0,0.4) 0px 4px 12px;
+  }
+  .heatmap-tooltip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: #4d4d4d;
   }
   .heatmap-cell:hover .heatmap-tooltip { display: block; }
+  .heatmap-week-label {
+    font-size: 10px; color: #4d4d4d; font-weight: 700;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 4px; width: 28px;
+  }
 
   .seg-control { display: flex; gap: 2px; padding: 3px; background: #2a2a2a; border-radius: 9999px; }
   .seg-btn {
@@ -148,11 +172,15 @@
 
 <!-- Heatmap -->
 <div class="panel-card p-5 mb-5">
-  <div class="flex items-center justify-between mb-4">
+  <div class="flex items-center justify-between mb-1">
     <p class="panel-title">Monthly Attendance</p>
     <p style="font-size:12px;color:#cbcbcb" id="heatmap-month-label"></p>
   </div>
-  <div class="grid gap-1 mb-1" style="grid-template-columns:repeat(7,26px)">
+  <p style="font-size:12px;color:#8a8a8a;margin-bottom:16px" id="heatmap-summary"></p>
+
+  <!-- Day-of-week header -->
+  <div style="display:grid;grid-template-columns:28px repeat(7,32px);gap:3px;margin-bottom:3px">
+    <div></div>
     <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Mon</div>
     <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Tue</div>
     <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Wed</div>
@@ -161,14 +189,21 @@
     <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Sat</div>
     <div style="font-size:10px;color:#8a8a8a;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px">Sun</div>
   </div>
-  <div id="heatmap-grid" class="grid gap-1" style="grid-template-columns:repeat(7,26px)"></div>
-  <div class="flex items-center justify-end gap-2 mt-3">
-    <span style="font-size:11px;color:#8a8a8a">Less</span>
-    <div style="width:12px;height:12px;border-radius:2px;background:#333333"></div>
-    <div style="width:12px;height:12px;border-radius:2px;background:rgba(30,215,96,0.2)"></div>
-    <div style="width:12px;height:12px;border-radius:2px;background:rgba(30,215,96,0.5)"></div>
-    <div style="width:12px;height:12px;border-radius:2px;background:#1ed760"></div>
-    <span style="font-size:11px;color:#8a8a8a">More</span>
+
+  <!-- Grid with week labels -->
+  <div id="heatmap-grid"></div>
+
+  <!-- Legend + peak day -->
+  <div class="flex items-center justify-between mt-4">
+    <span style="font-size:11px;color:#8a8a8a" id="heatmap-peak"></span>
+    <div class="flex items-center gap-2">
+      <span style="font-size:11px;color:#8a8a8a">Less</span>
+      <div style="width:14px;height:14px;border-radius:3px;background:#333333"></div>
+      <div style="width:14px;height:14px;border-radius:3px;background:rgba(30,215,96,0.2)"></div>
+      <div style="width:14px;height:14px;border-radius:3px;background:rgba(30,215,96,0.5)"></div>
+      <div style="width:14px;height:14px;border-radius:3px;background:#1ed760"></div>
+      <span style="font-size:11px;color:#8a8a8a">More</span>
+    </div>
   </div>
 </div>
 
@@ -409,46 +444,121 @@ new Chart(donutCtx, {
   }
 });
 
-// Heatmap
+// Heatmap — real data from server
 (function buildHeatmap() {
-  const now = new Date();
-  const year = now.getFullYear(), month = now.getMonth();
-  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  document.getElementById('heatmap-month-label').textContent = monthNames[month] + ' ' + year;
+  const realData   = {{ heatmap_data|safe }};
+  const now        = new Date();
+  const year       = now.getFullYear();
+  const month      = now.getMonth();
+  const todayStr   = now.toISOString().slice(0, 10);
+
+  const monthNames     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fullMonthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames       = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  document.getElementById('heatmap-month-label').textContent = fullMonthNames[month] + ' ' + year;
+
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDow = new Date(year, month, 1).getDay();
-  const startOffset = (firstDow + 6) % 7;
+  const firstDow    = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0
+
+  // Build counts from real data
   const counts = {};
+  let totalCheckins = 0, peakCount = 0, peakDay = null;
   for (let d = 1; d <= daysInMonth; d++) {
-    const dow = (new Date(year, month, d).getDay() + 6) % 7;
-    const base = dow >= 5 ? 8 : 28;
-    counts[d] = Math.max(0, Math.round(base + (Math.random() * 12 - 6)));
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    counts[d] = realData[dateStr] || 0;
+    totalCheckins += counts[d];
+    if (counts[d] > peakCount) { peakCount = counts[d]; peakDay = d; }
   }
+
+  // Summary
+  const activeDays = Object.values(counts).filter(v => v > 0).length;
+  document.getElementById('heatmap-summary').textContent =
+    `${totalCheckins} total check-ins · ${activeDays} active day${activeDays !== 1 ? 's' : ''}`;
+
+  if (peakDay) {
+    const peakDow = (new Date(year, month, peakDay).getDay() + 6) % 7;
+    document.getElementById('heatmap-peak').textContent =
+      `Peak: ${dayNames[peakDow]} ${monthNames[month]} ${peakDay} (${peakCount} check-ins)`;
+  }
+
+  // Color scale based on max
+  const maxCount = Math.max(...Object.values(counts), 1);
   function getColor(n) {
     if (n === 0) return '#333333';
-    if (n <= 10) return 'rgba(30,215,96,0.2)';
-    if (n <= 25) return 'rgba(30,215,96,0.5)';
+    const ratio = n / maxCount;
+    if (ratio <= 0.25) return 'rgba(30,215,96,0.2)';
+    if (ratio <= 0.6)  return 'rgba(30,215,96,0.5)';
+    if (ratio <= 0.85) return 'rgba(30,215,96,0.75)';
     return '#1ed760';
   }
+
+  // Build grid: rows of weeks, with week-number label on left
   const grid = document.getElementById('heatmap-grid');
-  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const fullMonthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  for (let i = 0; i < startOffset; i++) {
-    const empty = document.createElement('div');
-    empty.className = 'heatmap-cell';
-    empty.style.background = 'transparent';
-    grid.appendChild(empty);
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    const cell = document.createElement('div');
-    cell.className = 'heatmap-cell';
-    cell.style.background = getColor(counts[d]);
-    const dow = (new Date(year, month, d).getDay() + 6) % 7;
-    const tip = document.createElement('div');
-    tip.className = 'heatmap-tooltip';
-    tip.textContent = `${dayNames[dow]} ${fullMonthNames[month]} ${d} — ${counts[d]} check-ins`;
-    cell.appendChild(tip);
-    grid.appendChild(cell);
+  grid.innerHTML = '';
+
+  // Total cells needed
+  const totalCells = firstDow + daysInMonth;
+  const numWeeks   = Math.ceil(totalCells / 7);
+
+  for (let w = 0; w < numWeeks; w++) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:28px repeat(7,32px);gap:3px;margin-bottom:3px';
+
+    // Week label (show week number)
+    const weekLabel = document.createElement('div');
+    weekLabel.className = 'heatmap-week-label';
+    // Find first real day in this week
+    const firstCellIndex = w * 7;
+    const firstDayOfWeek = firstCellIndex - firstDow + 1;
+    if (firstDayOfWeek >= 1 && firstDayOfWeek <= daysInMonth) {
+      const d = new Date(year, month, firstDayOfWeek);
+      const weekNum = Math.ceil(firstDayOfWeek / 7);
+      weekLabel.textContent = `W${weekNum}`;
+    }
+    row.appendChild(weekLabel);
+
+    for (let col = 0; col < 7; col++) {
+      const cellIndex = w * 7 + col;
+      const dayNum    = cellIndex - firstDow + 1;
+      const cell      = document.createElement('div');
+      cell.className  = 'heatmap-cell';
+
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        cell.style.background = 'transparent';
+        cell.style.cursor = 'default';
+      } else {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+        const count   = counts[dayNum];
+        cell.style.background = getColor(count);
+        if (count > 0) cell.classList.add('has-data');
+        if (dateStr === todayStr) cell.classList.add('today-cell');
+
+        // Day number inside cell
+        const dayLabel = document.createElement('span');
+        dayLabel.textContent = dayNum;
+        dayLabel.style.cssText = `
+          font-size:9px; font-weight:700; pointer-events:none;
+          color:${count > 0 ? 'rgba(0,0,0,0.45)' : '#4d4d4d'};
+        `;
+        cell.appendChild(dayLabel);
+
+        // Tooltip
+        const dow = (new Date(year, month, dayNum).getDay() + 6) % 7;
+        const tip = document.createElement('div');
+        tip.className = 'heatmap-tooltip';
+        const isFuture = dateStr > todayStr;
+        tip.innerHTML = `
+          <div style="font-weight:700;margin-bottom:2px">${dayNames[dow]}, ${fullMonthNames[month]} ${dayNum}</div>
+          <div style="color:${count > 0 ? '#1ed760' : '#8a8a8a'}">
+            ${isFuture ? '—' : count > 0 ? `${count} check-in${count !== 1 ? 's' : ''}` : 'No check-ins'}
+          </div>
+        `;
+        cell.appendChild(tip);
+      }
+      row.appendChild(cell);
+    }
+    grid.appendChild(row);
   }
 })();
 </script>

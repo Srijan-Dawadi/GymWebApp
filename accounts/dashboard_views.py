@@ -77,6 +77,14 @@ class DashboardView(TemplateView):
         ctx['chart_labels'] = json.dumps(labels)
         ctx['chart_counts'] = json.dumps(counts)
 
+        # ── Heatmap — real per-day counts for current month ──────────────
+        heatmap_data = {}
+        for record in Attendance.objects.filter(
+            date__gte=month_start, date__lte=today
+        ).values('date').annotate(cnt=Count('id')):
+            heatmap_data[str(record['date'])] = record['cnt']
+        ctx['heatmap_data'] = json.dumps(heatmap_data)
+
         # ── Membership donut ─────────────────────────────────────────
         ctx['donut_data'] = json.dumps([
             ctx['active_members'],
