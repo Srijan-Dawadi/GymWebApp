@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/inventory/views.py
+# hypothesis_version: 6.131.15
+
+['/accounts/login/', '/inventory/', 'categories', 'category', 'count', 'description', 'id', 'items', 'name', 'needs_attention', 'notes', 'q', 'quantity', 'results', 'status', 'status_choices', 'status_label', 't', 'total_items', 'total_qty', 'updated_at', 'weight_kg']

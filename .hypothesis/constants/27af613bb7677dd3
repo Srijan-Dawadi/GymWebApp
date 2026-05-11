@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/members/migrations/0001_initial.py
+# hypothesis_version: 6.131.15
+
+[100, 200, 'Active', 'Expired', 'ID', 'Member', 'MembershipPlan', 'Suspended', 'active', 'duration_days', 'email', 'expired', 'expiry_date', 'face_descriptor', 'full_name', 'id', 'join_date', 'member_photos/', 'members', 'membership_plan', 'name', 'phone', 'photo', 'price', 'status', 'suspended']

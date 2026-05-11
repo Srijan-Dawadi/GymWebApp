@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/members/migrations/0002_add_address_to_member.py
+# hypothesis_version: 6.131.15
+
+['0001_initial', 'address', 'member', 'members']

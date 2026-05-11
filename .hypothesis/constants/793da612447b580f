@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/accounts/user_views.py
+# hypothesis_version: 6.131.15
+
+['Create', 'Edit', 'accounts/users.html', 'action', 'email', 'password', 'profile', 'role', 'staff', 'u', 'user_list', 'username', 'users']

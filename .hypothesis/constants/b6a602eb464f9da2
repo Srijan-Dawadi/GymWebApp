@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/billing/urls.py
+# hypothesis_version: 6.131.15
+
+['member_plan_info', 'payment_add', 'payment_list', 'payments/', 'payments/add/', 'plan_delete', 'plan_edit', 'plan_list', 'plans/', 'plans/<int:pk>/edit/']

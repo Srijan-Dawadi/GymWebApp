@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/members/forms.py
+# hypothesis_version: 6.131.15
+
+['address', 'date', 'email', 'full_name', 'join_date', 'membership_plan', 'phone', 'photo', 'rows', 'type']

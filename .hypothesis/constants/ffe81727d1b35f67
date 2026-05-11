@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/gymapp/views.py
+# hypothesis_version: 6.131.15
+
+[403, 404, 500, 'errors/403.html', 'errors/404.html', 'errors/500.html']

@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/accounts/dashboard_views.py
+# hypothesis_version: 6.131.15
+
+[100, '%a %d', '%d %b', '+', '-', '-check_in_time', '-date_paid', '-id', '0', 'Today', 'active', 'active_members', 'amount', 'attendance', 'chart_counts', 'chart_labels', 'data', 'dispatch', 'donut_data', 'expired', 'expired_members', 'expiring_soon', 'expiry_date', 'labels', 'last_month_revenue', 'member', 'monthly_revenue', 'new_last_month', 'new_members_trend', 'new_this_month', 'overdue_members', 'range', 'recent_checkins', 'recent_payments', 'revenue', 'revenue_change_pct', 'suspended', 'suspended_members', 't', 'today_attendance', 'total', 'total_members']

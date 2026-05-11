@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/cafe/tests.py
+# hypothesis_version: 6.131.15
+
+[100, 200, 400, '-created_at', '-payment_received_at', '/cafe/', '/cafe/orders/create/', '0.01', '12.00', '2.00', '2.50', '3.00', '3.50', '4.00', '5.99', '8.00', '999.99', 'Coffee', 'Espresso', 'Espresso (₹2.50)', 'Ll', 'Lu', 'Nd', 'T1', 'T5', 'Tea', 'TestItem', 'action', 'application/json', 'created_at', 'fulfill', 'fulfilled', 'item_name[]', 'item_price[]', 'item_qty[]', 'pass', 'payment_received', 'pending', 'table_number', 'teststaff']

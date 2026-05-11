@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/accounts/dashboard_urls.py
+# hypothesis_version: 6.131.15
+
+['chart-data/', 'chart_data_api', 'dashboard', 'export_report', 'reports', 'reports/', 'reports/export/']

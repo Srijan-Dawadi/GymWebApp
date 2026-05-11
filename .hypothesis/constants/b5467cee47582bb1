@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/cafe/migrations/0001_initial.py
+# hypothesis_version: 6.131.15
+
+[200, 'Fulfilled', 'ID', 'MenuItem', 'Order', 'OrderItem', 'Payment Received', 'Pending', 'cafe.menuitem', 'cafe.order', 'created_at', 'fulfilled', 'fulfilled_at', 'id', 'is_active', 'items', 'menu_item', 'name', 'order', 'ordering', 'payment_received', 'payment_received_at', 'pending', 'price', 'quantity', 'status', 'table_number', 'unit_price']

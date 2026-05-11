@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/billing/views.py
+# hypothesis_version: 6.131.15
+
+['%Y-%m-%d', '-date_paid', 'Plan deleted.', 'Plan updated.', 'billing/plans.html', 'date_paid', 'duration_days', 'end', 'form', 'full_name', 'member', 'members', 'page', 'page_obj', 'payment_list', 'period_end', 'period_start', 'plan', 'plan_list', 'plan_name', 'plan_price', 'plans', 'selected_member', 'start']

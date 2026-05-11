@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/inventory/migrations/0003_remove_hex_dumbbells.py
+# hypothesis_version: 6.131.15
+
+['0002_seed_equipment', 'Hex Rubber Dumbbell', 'InventoryItem', 'dumbbells', 'good', 'inventory']

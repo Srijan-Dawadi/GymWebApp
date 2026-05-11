@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/cafe/models.py
+# hypothesis_version: 6.131.15
+
+[200, 'Fulfilled', 'Payment Received', 'Pending', 'created_at', 'fulfilled', 'items', 'name', 'payment_received', 'pending']

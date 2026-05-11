@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/billing/migrations/0001_initial.py
+# hypothesis_version: 6.131.15
+
+['0001_initial', 'Card', 'Cash', 'ID', 'Payment', 'Transfer', 'amount', 'card', 'cash', 'date_paid', 'id', 'member', 'members', 'members.member', 'notes', 'payment_method', 'payments', 'period_end', 'period_start', 'transfer']

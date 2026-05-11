@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/gymapp/settings.py
+# hypothesis_version: 6.131.15
+
+['.env', '/accounts/login/', '/dashboard/', '/media/', '/static/', '127.0.0.1', 'ALLOWED_HOSTS', 'APP_DIRS', 'Asia/Kolkata', 'BACKEND', 'CSRF_TRUSTED_ORIGINS', 'DATABASE_URL', 'DEBUG', 'DIRS', 'NAME', 'OPTIONS', 'SECRET_KEY', 'accounts', 'attendance', 'billing', 'cafe', 'context_processors', 'default', 'django.contrib.admin', 'django.contrib.auth', 'en-us', 'gymapp.urls', 'inventory', 'localhost', 'media', 'members', 'sqlite:///db.sqlite3', 'static', 'staticfiles', 'templates']

@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/members/urls.py
+# hypothesis_version: 6.131.15
+
+['<int:pk>/', '<int:pk>/delete/', '<int:pk>/edit/', 'add/', 'bulk-action/', 'enroll-frame/', 'enroll_frame_api', 'export/', 'member_add', 'member_bulk_action', 'member_delete', 'member_detail', 'member_edit', 'member_export_csv', 'member_list', 'member_search_api', 'search/']

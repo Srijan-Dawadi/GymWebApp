@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/manage.py
+# hypothesis_version: 6.131.15
+
+['__main__', 'gymapp.settings']

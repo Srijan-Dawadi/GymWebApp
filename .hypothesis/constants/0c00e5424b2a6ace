@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/inventory/models.py
+# hypothesis_version: 6.131.15
+
+[200, 'Accessories', 'Barbells & Bars', 'Cardio Machines', 'Dumbbells', 'Good', 'Needs Maintenance', 'Out of Service', 'Strength Machines', 'Weight Plates', 'accessories', 'barbells', 'cardio', 'category', 'dumbbells', 'good', 'maintenance', 'name', 'out_of_service', 'strength', 'weight_kg', 'weight_plates']

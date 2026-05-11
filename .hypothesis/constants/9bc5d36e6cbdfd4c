@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/cafe/views.py
+# hypothesis_version: 6.131.15
+
+[400, '-payment_received_at', 'Invalid JSON body', 'Invalid transition', 'action', 'active_orders', 'cafe/cafe.html', 'cafe:cafe_home', 'created_at', 'error', 'fulfill', 'fulfilled', 'history_orders', 'item_name[]', 'item_price[]', 'item_qty[]', 'items__menu_item', 'menu_items', 'name', 'ok', 'payment_received', 'pending', 'status', 'table_number']

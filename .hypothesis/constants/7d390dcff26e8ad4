@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/cafe/urls.py
+# hypothesis_version: 6.131.15
+
+['cafe', 'cafe_home', 'cafe_order_create', 'cafe_order_status', 'orders/create/']

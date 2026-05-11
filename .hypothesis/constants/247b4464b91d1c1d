@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/cafe/admin.py
+# hypothesis_version: 6.131.15
+
+['created_at', 'id', 'is_active', 'menu_item', 'name', 'price', 'quantity', 'status', 'subtotal', 'table_number', 'total', 'unit_price']

@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/accounts/urls.py
+# hypothesis_version: 6.131.15
+
+['login', 'login/', 'logout', 'logout/', 'user_create', 'user_delete', 'user_edit', 'user_list', 'users/', 'users/<int:pk>/edit/', 'users/add/']

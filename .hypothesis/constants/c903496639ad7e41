@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/accounts/views.py
+# hypothesis_version: 6.131.15
+
+['/dashboard/', 'accounts/login.html', 'dashboard', 'form', 'login', 'next']

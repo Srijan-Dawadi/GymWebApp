@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/inventory/urls.py
+# hypothesis_version: 6.131.15
+
+['<int:pk>/delete/', '<int:pk>/edit/', '<int:pk>/status/', 'add/', 'inventory', 'inventory_add', 'inventory_delete', 'inventory_edit', 'inventory_search', 'inventory_status', 'search/']

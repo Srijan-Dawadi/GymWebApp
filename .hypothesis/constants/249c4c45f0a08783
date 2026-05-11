@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/inventory/migrations/0001_initial.py
+# hypothesis_version: 6.131.15
+
+[200, 'Accessories', 'Barbells & Bars', 'Cardio Machines', 'Dumbbells', 'Good', 'ID', 'InventoryItem', 'Needs Maintenance', 'Out of Service', 'Strength Machines', 'Weight Plates', 'accessories', 'barbells', 'cardio', 'category', 'created_at', 'description', 'dumbbells', 'good', 'id', 'maintenance', 'name', 'notes', 'ordering', 'out_of_service', 'quantity', 'status', 'strength', 'updated_at', 'weight_kg', 'weight_plates']

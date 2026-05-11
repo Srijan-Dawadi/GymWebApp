@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/accounts/migrations/0001_initial.py
+# hypothesis_version: 6.131.15
+
+['Admin', 'ID', 'Profile', 'Staff', 'admin', 'id', 'profile', 'role', 'staff', 'user']

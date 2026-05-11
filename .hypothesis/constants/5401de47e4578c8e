@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/gymapp/urls.py
+# hypothesis_version: 6.131.15
+
+['/dashboard/', 'accounts.urls', 'accounts/', 'admin/', 'attendance.urls', 'attendance/', 'billing.urls', 'billing/', 'cafe.urls', 'cafe/', 'dashboard/', 'inventory.urls', 'inventory/', 'members.urls', 'members/']

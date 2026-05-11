@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/attendance/views.py
+# hypothesis_version: 6.131.15
+
+[200, 400, 404, 405, 409, 500, '%I:%M %p', ',', '-check_in_time', '-date', 'Check-in Time', 'Content-Disposition', 'Date', 'Face not recognised', 'Invalid JSON', 'Invalid image data', 'Member Name', 'Member not found', 'Method', 'Method not allowed', 'No face detected', 'POST', 'active', 'attendance', 'date_from', 'date_to', 'dispatch', 'duplicate', 'embedding', 'end', 'error', 'expired', 'face', 'full_name', 'image', 'image field required', 'liveness_score', 'manual', 'member', 'member_id', 'member_name', 'members', 'message', 'no_face', 'ok', 'page', 'page_obj', 'q', 'score', 'spoof', 'start', 'status', 'suspended', 'text/csv', 'today', 'today_records', 'total_filtered', 'unavailable', 'unknown']

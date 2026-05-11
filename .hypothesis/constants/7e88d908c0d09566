@@ -1,0 +1,4 @@
+# file: /home/onion/GymWebApp/billing/forms.py
+# hypothesis_version: 6.131.15
+
+['amount', 'date', 'date_paid', 'duration_days', 'member', 'name', 'notes', 'payment_method', 'period_end', 'period_start', 'price', 'rows', 'type']
