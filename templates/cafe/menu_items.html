@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% block title %}Cafe Menu — 5 Star Fitness{% endblock %}
+{% block page_title %}Cafe Menu{% endblock %}
+
+{% block header_actions %}
+<button onclick="openAddModal()" class="sp-btn-primary" style="font-size:13px;padding:7px 20px">
+  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px;stroke-width:2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+  Add Item
+</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .menu-table-card { background:#181818; border:1px solid #333333; border-radius:8px; overflow:hidden; }
+  .menu-th { padding:12px 16px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:#b3b3b3; font-weight:700; background:#1f1f1f; border-bottom:1px solid #333333; }
+  .menu-row { border-bottom:1px solid #282828; transition:background 0.1s; }
+  .menu-row:hover { background:#1f1f1f; }
+  .menu-row:last-child { border-bottom:none; }
+  .menu-td { padding:12px 16px; font-size:14px; color:#cbcbcb; }
+
+  .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; border:none; background:transparent; cursor:pointer; transition:background 0.1s; }
+  .icon-btn svg { stroke:#b3b3b3; transition:stroke 0.1s; }
+  .icon-btn:hover { background:#282828; }
+  .icon-btn:hover svg { stroke:#ffffff; }
+
+  /* Modal */
+  .menu-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:180; align-items:center; justify-content:center; padding:16px; display:none; }
+  .menu-modal-overlay.active { display:flex; }
+  .menu-modal-card {
+    background:#181818; border:1px solid #4d4d4d; border-radius:12px;
+    width:100%; max-width:440px;
+    box-shadow:rgba(0,0,0,0.6) 0px 16px 48px;
+    transform:scale(0.95); opacity:0;
+    transition:transform 0.2s ease, opacity 0.2s ease;
+    position:relative; z-index:181;
+  }
+  .menu-modal-card.open { transform:scale(1); opacity:1; }
+  .menu-modal-header { padding:20px 24px 16px; border-bottom:1px solid #282828; display:flex; align-items:center; justify-content:space-between; }
+  .menu-modal-body { padding:20px 24px; }
+  .menu-modal-footer { padding:16px 24px; border-top:1px solid #282828; display:flex; gap:10px; justify-content:flex-end; }
+  .form-label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#b3b3b3; margin-bottom:6px; }
+  .form-group { margin-bottom:16px; }
+
+  .toggle-wrap { display:flex; align-items:center; gap:10px; }
+  .toggle-wrap input[type=checkbox] { width:18px; height:18px; accent-color:#1ed760; cursor:pointer; }
+  .toggle-wrap label { font-size:14px; color:#cbcbcb; cursor:pointer; }
+
+  .price-wrap { position:relative; }
+  .price-wrap::before { content:'₹'; position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#8a8a8a; font-size:13px; pointer-events:none; z-index:1; }
+  .price-wrap .glow-input { padding-left:26px !important; }
+</style>
+
+<!-- Back link -->
+<div class="mb-5">
+  <a href="{% url 'cafe:cafe_home' %}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#b3b3b3;text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#b3b3b3'">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;stroke-width:2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    Back to Cafe
+  </a>
+</div>
+
+<!-- Summary -->
+<div class="flex items-center gap-4 mb-5">
+  <div class="glass-card px-5 py-4" style="min-width:120px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:4px">Total Items</p>
+    <p style="font-size:28px;font-weight:700;color:#ffffff">{{ menu_items.count }}</p>
+  </div>
+  <div class="glass-card px-5 py-4" style="min-width:120px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:4px">Active</p>
+    <p style="font-size:28px;font-weight:700;color:#1ed760">{{ menu_items|length }}</p>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="menu-table-card">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm" style="min-width:480px">
+      <thead>
+        <tr>
+          <th class="menu-th">Item Name</th>
+          <th class="menu-th">Price</th>
+          <th class="menu-th">Status</th>
+          <th class="menu-th">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in menu_items %}
+        <tr class="menu-row">
+          <td class="menu-td" style="font-weight:600;color:#ffffff">{{ item.name }}</td>
+          <td class="menu-td">₹{{ item.price }}</td>
+          <td class="menu-td">
+            {% if item.is_active %}
+            <span class="badge-active">Active</span>
+            {% else %}
+            <span class="badge-expired">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="menu-td">
+            <div class="flex items-center gap-1">
+              <button class="icon-btn" title="Edit"
+                onclick="openEditModal({{ item.pk }}, '{{ item.name|escapejs }}', '{{ item.price }}', {{ item.is_active|yesno:'true,false' }})">
+                <svg fill="none" viewBox="0 0 24 24" style="width:15px;height:15px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <button class="icon-btn" title="Delete"
+                onmouseover="this.querySelector('svg').style.stroke='#f3727f'" onmouseout="this.querySelector('svg').style.stroke='#b3b3b3'"
+                onclick="confirmMenuDelete({{ item.pk }}, '{{ item.name|escapejs }}')">
+                <svg fill="none" viewBox="0 0 24 24" style="width:15px;height:15px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" style="padding:60px 16px;text-align:center">
+            <div style="font-size:32px;margin-bottom:12px">☕</div>
+            <p style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:4px">No menu items yet</p>
+            <p style="font-size:13px;color:#b3b3b3">Click "Add Item" to create your first menu item.</p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Hidden delete forms -->
+<div id="delete-forms" style="display:none"></div>
+
+<script>
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+// ── Add Modal ────────────────────────────────────────────────────────────────
+function openAddModal() {
+  const overlay = document.getElementById('add-modal');
+  overlay.classList.add('active');
+  requestAnimationFrame(() => document.getElementById('add-modal-card').classList.add('open'));
+}
+function closeAddModal() {
+  document.getElementById('add-modal-card').classList.remove('open');
+  setTimeout(() => document.getElementById('add-modal').classList.remove('active'), 200);
+}
+document.getElementById('add-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAddModal();
+});
+
+// ── Edit Modal ───────────────────────────────────────────────────────────────
+function openEditModal(pk, name, price, isActive) {
+  document.getElementById('edit-form').action = '/cafe/menu/' + pk + '/edit/';
+  document.getElementById('edit-name').value  = name;
+  document.getElementById('edit-price').value = price;
+  document.getElementById('edit-is-active').checked = isActive;
+
+  const overlay = document.getElementById('edit-modal');
+  overlay.classList.add('active');
+  requestAnimationFrame(() => document.getElementById('edit-modal-card').classList.add('open'));
+}
+function closeEditModal() {
+  document.getElementById('edit-modal-card').classList.remove('open');
+  setTimeout(() => document.getElementById('edit-modal').classList.remove('active'), 200);
+}
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+function confirmMenuDelete(pk, name) {
+  showModal({
+    title: 'Remove "' + name + '"?',
+    body: 'This will permanently remove this item from the menu. Existing order history will not be affected.',
+    icon: '🗑️',
+    iconBg: 'background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3)',
+    confirmText: 'Remove',
+    confirmStyle: 'background:#f3727f;color:#000;border-radius:9999px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer',
+    onConfirm: () => {
+      const container = document.getElementById('delete-forms');
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = '/cafe/menu/' + pk + '/delete/';
+      const csrf = document.createElement('input');
+      csrf.type = 'hidden'; csrf.name = 'csrfmiddlewaretoken';
+      csrf.value = getCookie('csrftoken');
+      form.appendChild(csrf);
+      container.appendChild(form);
+      form.submit();
+    }
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeAddModal(); closeEditModal(); }
+});
+</script>
+{% endblock %}
+
+{% block modals %}
+<!-- ── Add Modal ── -->
+<div id="add-modal" class="menu-modal-overlay">
+  <div id="add-modal-card" class="menu-modal-card">
+    <div class="menu-modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#ffffff">Add Menu Item</h2>
+      <button onclick="closeAddModal()" style="background:none;border:none;cursor:pointer;color:#b3b3b3;padding:4px" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#b3b3b3'">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form method="post" action="{% url 'cafe:menu_item_add' %}">
+      {% csrf_token %}
+      <div class="menu-modal-body">
+        <div class="form-group">
+          <label class="form-label">Item Name *</label>
+          <input type="text" name="name" required placeholder="e.g. Masala Chai" class="glow-input" style="border-radius:8px !important" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Price (₹) *</label>
+          <div class="price-wrap">
+            <input type="number" name="price" required min="0" step="0.01" placeholder="0.00" class="glow-input" style="border-radius:8px !important" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <div class="toggle-wrap">
+            <input type="checkbox" name="is_active" id="add-is-active" checked />
+            <label for="add-is-active">Active (visible in order form)</label>
+          </div>
+        </div>
+      </div>
+      <div class="menu-modal-footer">
+        <button type="button" onclick="closeAddModal()" class="cancel-btn">Cancel</button>
+        <button type="submit" class="sp-btn-primary">Add Item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Edit Modal ── -->
+<div id="edit-modal" class="menu-modal-overlay">
+  <div id="edit-modal-card" class="menu-modal-card">
+    <div class="menu-modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#ffffff">Edit Menu Item</h2>
+      <button onclick="closeEditModal()" style="background:none;border:none;cursor:pointer;color:#b3b3b3;padding:4px" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#b3b3b3'">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="edit-form" method="post" action="">
+      {% csrf_token %}
+      <div class="menu-modal-body">
+        <div class="form-group">
+          <label class="form-label">Item Name *</label>
+          <input type="text" id="edit-name" name="name" required class="glow-input" style="border-radius:8px !important" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Price (₹) *</label>
+          <div class="price-wrap">
+            <input type="number" id="edit-price" name="price" required min="0" step="0.01" class="glow-input" style="border-radius:8px !important" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <div class="toggle-wrap">
+            <input type="checkbox" name="is_active" id="edit-is-active" />
+            <label for="edit-is-active">Active (visible in order form)</label>
+          </div>
+        </div>
+      </div>
+      <div class="menu-modal-footer">
+        <button type="button" onclick="closeEditModal()" class="cancel-btn">Cancel</button>
+        <button type="submit" class="sp-btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Hidden delete forms -->
+<div id="delete-forms" style="display:none"></div>
+{% endblock %}

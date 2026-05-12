@@ -342,7 +342,7 @@
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
         <span class="text-sm">Inventory</span>
       </a>
-      <a href="/cafe/" class="sidebar-link sidebar-nav-link {% if '/cafe' in request.path %}active{% endif %}">
+      <a href="/cafe/" class="sidebar-link sidebar-nav-link {% if '/cafe' in request.path and '/cafe/menu' not in request.path and '/cafe/reports' not in request.path %}active{% endif %}">
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zm4-4h8v4H6V4z"/></svg>
         <span class="text-sm">Cafe</span>
       </a>
@@ -363,6 +363,14 @@
         <a href="/dashboard/reports/" class="sidebar-link sidebar-nav-link {% if '/reports' in request.path %}active{% endif %}">
           <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           <span class="text-sm">Reports</span>
+        </a>
+        <a href="/cafe/menu/" class="sidebar-link sidebar-nav-link {% if '/cafe/menu' in request.path %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <span class="text-sm">Cafe Menu</span>
+        </a>
+        <a href="/cafe/reports/" class="sidebar-link sidebar-nav-link {% if '/cafe/reports' in request.path %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span class="text-sm">Cafe Reports</span>
         </a>
       </div>
       {% endif %}
@@ -404,6 +412,8 @@
   {% block auth_content %}{% endblock %}
 {% endif %}
 
+{% block modals %}{% endblock %}
+
 <!-- ── Global Confirm Modal ── -->
 <div id="confirm-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
   <div id="modal-backdrop" class="absolute inset-0" style="background:rgba(0,0,0,0.7)" onclick="closeModal()"></div>
@@ -419,7 +429,7 @@
   </div>
 </div>
 
-<div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2">
+<div id="toast-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2">
   {% for message in messages %}
   <div class="toast flex items-center gap-3 px-4 py-3 text-sm max-w-sm"
     style="border-radius:9999px;border:1px solid;
