@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
-from accounts.mixins import StaffRequiredMixin
+from accounts.mixins import AdminRequiredMixin, StaffRequiredMixin
 from .models import MenuItem, Order, OrderItem
 
 
@@ -132,3 +132,211 @@ class UpdateOrderStatusView(StaffRequiredMixin, View):
             }
 
         return JsonResponse(response_data)
+
+
+# ── Menu Management (admin only) ─────────────────────────────────────────────
+
+class MenuItemListView(AdminRequiredMixin, View):
+    template_name = 'cafe/menu_items.html'
+
+    def get(self, request):
+        menu_items = MenuItem.objects.all().order_by('name')
+        return render(request, self.template_name, {'menu_items': menu_items})
+
+
+class MenuItemAddView(AdminRequiredMixin, View):
+
+    def post(self, request):
+        name = request.POST.get('name', '').strip()
+        price = request.POST.get('price', '').strip()
+        is_active = request.POST.get('is_active', 'on') == 'on'
+
+        if not name or not price:
+            messages.error(request, "Name and price are required.")
+            return redirect('cafe:menu_items')
+
+        try:
+            price = float(price)
+            if price < 0:
+                raise ValueError
+        except ValueError:
+            messages.error(request, "Price must be a valid positive number.")
+            return redirect('cafe:menu_items')
+
+        if MenuItem.objects.filter(name__iexact=name).exists():
+            messages.error(request, f'A menu item named "{name}" already exists.')
+            return redirect('cafe:menu_items')
+
+        MenuItem.objects.create(name=name, price=price, is_active=is_active)
+        messages.success(request, f'"{name}" added to the menu.')
+        return redirect('cafe:menu_items')
+
+
+class MenuItemEditView(AdminRequiredMixin, View):
+
+    def post(self, request, pk):
+        item = get_object_or_404(MenuItem, pk=pk)
+        name = request.POST.get('name', '').strip()
+        price = request.POST.get('price', '').strip()
+        is_active = request.POST.get('is_active', 'off') == 'on'
+
+        if not name or not price:
+            messages.error(request, "Name and price are required.")
+            return redirect('cafe:menu_items')
+
+        try:
+            price = float(price)
+            if price < 0:
+                raise ValueError
+        except ValueError:
+            messages.error(request, "Price must be a valid positive number.")
+            return redirect('cafe:menu_items')
+
+        # Check for name collision with a different item
+        if MenuItem.objects.filter(name__iexact=name).exclude(pk=pk).exists():
+            messages.error(request, f'A menu item named "{name}" already exists.')
+            return redirect('cafe:menu_items')
+
+        item.name = name
+        item.price = price
+        item.is_active = is_active
+        item.save()
+        messages.success(request, f'"{item.name}" updated.')
+        return redirect('cafe:menu_items')
+
+
+class MenuItemDeleteView(AdminRequiredMixin, View):
+
+    def post(self, request, pk):
+        item = get_object_or_404(MenuItem, pk=pk)
+        name = item.name
+        item.delete()
+        messages.success(request, f'"{name}" removed from the menu.')
+        return redirect('cafe:menu_items')
+
+
+# ── Cafe Reports (admin only) ─────────────────────────────────────────────────
+
+class CafeReportsView(AdminRequiredMixin, View):
+    template_name = 'cafe/reports.html'
+
+    def get(self, request):
+        import json
+        from django.db.models import Count, Sum, F
+        from django.db.models.functions import TruncDate, TruncHour
+        from datetime import timedelta
+
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+
+        # ── All-time KPIs ────────────────────────────────────────────
+        paid_orders = Order.objects.filter(status='payment_received')
+
+        total_revenue = paid_orders.aggregate(
+            t=Sum(F('items__unit_price') * F('items__quantity'))
+        )['t'] or 0
+
+        total_orders = paid_orders.count()
+
+        today_orders = paid_orders.filter(created_at__date=today)
+        today_revenue = today_orders.aggregate(
+            t=Sum(F('items__unit_price') * F('items__quantity'))
+        )['t'] or 0
+        today_order_count = today_orders.count()
+
+        month_orders = paid_orders.filter(created_at__date__gte=month_start)
+        month_revenue = month_orders.aggregate(
+            t=Sum(F('items__unit_price') * F('items__quantity'))
+        )['t'] or 0
+        month_order_count = month_orders.count()
+
+        avg_order_value = round(float(total_revenue) / total_orders, 2) if total_orders else 0
+
+        # ── Daily revenue — last 14 days ─────────────────────────────
+        daily_data = []
+        for i in range(13, -1, -1):
+            day = today - timedelta(days=i)
+            rev = paid_orders.filter(created_at__date=day).aggregate(
+                t=Sum(F('items__unit_price') * F('items__quantity'))
+            )['t'] or 0
+            cnt = paid_orders.filter(created_at__date=day).count()
+            daily_data.append({
+                'date': day.strftime('%d %b'),
+                'revenue': float(rev),
+                'orders': cnt,
+            })
+
+        # ── Item sales breakdown ──────────────────────────────────────
+        from django.db.models import ExpressionWrapper, DecimalField
+
+        item_sales = (
+            OrderItem.objects
+            .filter(order__status='payment_received')
+            .values('name')
+            .annotate(
+                total_qty=Sum('quantity'),
+                total_revenue=Sum(
+                    ExpressionWrapper(
+                        F('unit_price') * F('quantity'),
+                        output_field=DecimalField()
+                    )
+                ),
+                order_count=Count('order', distinct=True),
+            )
+            .order_by('-total_qty')
+        )
+
+        # Top 5 and bottom 5 by quantity
+        item_sales_list = list(item_sales)
+        top_items    = item_sales_list[:5]
+        bottom_items = [i for i in item_sales_list if i['total_qty'] <= 2][:5]
+
+        # ── Hourly order distribution (all time) ─────────────────────
+        hourly_raw = (
+            paid_orders
+            .annotate(hour=TruncHour('created_at'))
+            .values('hour')
+            .annotate(cnt=Count('id'))
+            .order_by('hour')
+        )
+        hourly_buckets = [0] * 24
+        for row in hourly_raw:
+            if row['hour']:
+                h = row['hour'].hour
+                hourly_buckets[h] += row['cnt']
+
+        # ── Pending / in-progress orders right now ───────────────────
+        pending_count   = Order.objects.filter(status='pending').count()
+        fulfilled_count = Order.objects.filter(status='fulfilled').count()
+
+        # ── Average fulfillment time (pending → fulfilled) ────────────
+        from django.db.models import Avg, DurationField, ExpressionWrapper as EW, F as Fld
+        avg_fulfill = (
+            Order.objects
+            .filter(status__in=['fulfilled', 'payment_received'], fulfilled_at__isnull=False)
+            .annotate(
+                duration=EW(Fld('fulfilled_at') - Fld('created_at'), output_field=DurationField())
+            )
+            .aggregate(avg=Avg('duration'))['avg']
+        )
+        avg_fulfill_mins = round(avg_fulfill.total_seconds() / 60, 1) if avg_fulfill else None
+
+        ctx = {
+            'today': today,
+            'total_revenue': total_revenue,
+            'total_orders': total_orders,
+            'today_revenue': today_revenue,
+            'today_order_count': today_order_count,
+            'month_revenue': month_revenue,
+            'month_order_count': month_order_count,
+            'avg_order_value': avg_order_value,
+            'pending_count': pending_count,
+            'fulfilled_count': fulfilled_count,
+            'avg_fulfill_mins': avg_fulfill_mins,
+            'item_sales': item_sales_list,
+            'top_items': top_items,
+            'bottom_items': bottom_items,
+            'daily_data': json.dumps(daily_data),
+            'hourly_data': json.dumps(hourly_buckets),
+        }
+        return render(request, self.template_name, ctx)
