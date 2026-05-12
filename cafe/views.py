@@ -114,4 +114,21 @@ class UpdateOrderStatusView(StaffRequiredMixin, View):
             order.payment_received_at = timezone.now()
         order.save()
 
-        return JsonResponse({"ok": True, "status": new_status})
+        response_data = {"ok": True, "status": new_status}
+
+        # For payment_received, include order details so the JS can inject a
+        # history row without a full page reload (Requirement 3.5 / 5.3-5.4).
+        if action == 'payment_received':
+            order.refresh_from_db()
+            items = list(
+                order.items.values('name', 'quantity', 'unit_price')
+            )
+            response_data['order'] = {
+                'id': order.pk,
+                'table_number': order.table_number,
+                'created_at': order.created_at.strftime('%-I:%M %p'),
+                'payment_received_at': order.payment_received_at.strftime('%-I:%M %p'),
+                'items': items,
+            }
+
+        return JsonResponse(response_data)

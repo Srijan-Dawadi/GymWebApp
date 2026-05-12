@@ -49,5 +49,5 @@
   - [x] 7.11 Write property-based tests using Hypothesis for Property 10 (active orders sort order) and Property 11 (history sort order) — Feature: cafe-management, Properties 10–11
   - [x] 7.12 Add `hypothesis` to `requirements.txt`
 
-- [-] 8. Seed initial menu items
-  - [ ] 8.1 Create a data migration in `cafe/migrations/` that seeds a small set of default `MenuItem` records (e.g., coffee, tea, water, snacks) so the system is usable immediately after deployment
+- [x] 8. Seed initial menu items
+  - [x] 8.1 Create a data migration in `cafe/migrations/` that seeds a small set of default `MenuItem` records (e.g., coffee, tea, water, snacks) so the system is usable immediately after deployment
