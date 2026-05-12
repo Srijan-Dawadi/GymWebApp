@@ -367,6 +367,7 @@
 <div>
   <p class="cafe-section-label">Today's History</p>
 
+<div data-history-section>
   {% if history_orders %}
   <div style="background:#181818;border:1px solid #333333;border-radius:8px;overflow:hidden">
     <div class="overflow-x-auto">
@@ -648,7 +649,7 @@ function updateOrderStatus(orderId, action) {
         showToast('Order #' + orderId + ' marked as fulfilled.', 'success');
 
       } else if (action === 'payment_received') {
-        // Remove the card from the DOM
+        // 1. Fade out and remove the active-board card
         const card = document.getElementById('order-card-' + orderId);
         if (card) {
           card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
@@ -656,7 +657,7 @@ function updateOrderStatus(orderId, action) {
           card.style.transform = 'scale(0.95)';
           setTimeout(() => {
             card.remove();
-            // Show empty state if no more cards
+            // Show empty state if no more cards remain
             const grid = document.getElementById('active-orders-grid');
             if (grid && grid.querySelectorAll('.order-card').length === 0) {
               grid.outerHTML = `
@@ -670,6 +671,53 @@ function updateOrderStatus(orderId, action) {
             }
           }, 300);
         }
+
+        // 2. Inject a new row at the top of the history table (no reload needed)
+        if (data.order) {
+          const o = data.order;
+          const itemsHtml = o.items.map(i =>
+            `<span style="display:block">${i.quantity}× ${i.name}</span>`
+          ).join('');
+          const newRow = `
+            <tr>
+              <td style="font-weight:700;color:#ffffff">#${o.id}</td>
+              <td>Table ${o.table_number}</td>
+              <td>${itemsHtml}</td>
+              <td>${o.created_at}</td>
+              <td>${o.payment_received_at}</td>
+              <td><span class="badge-expired">Paid</span></td>
+            </tr>`;
+
+          // If the history table already exists, prepend the row
+          const tbody = document.querySelector('.dark-table tbody');
+          if (tbody) {
+            tbody.insertAdjacentHTML('afterbegin', newRow);
+          } else {
+            // History section was showing the empty-state — replace it with a full table
+            const historySection = document.querySelector('[data-history-section]');
+            if (historySection) {
+              historySection.innerHTML = `
+                <div style="background:#181818;border:1px solid #333333;border-radius:8px;overflow:hidden">
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-sm dark-table" style="min-width:640px">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Table</th>
+                          <th>Items</th>
+                          <th>Time Placed</th>
+                          <th>Payment Received</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>${newRow}</tbody>
+                    </table>
+                  </div>
+                </div>`;
+            }
+          }
+        }
+
         showToast('Order #' + orderId + ' marked as paid.', 'success');
       }
     } else {
