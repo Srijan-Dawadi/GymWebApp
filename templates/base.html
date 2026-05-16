@@ -372,6 +372,13 @@
           <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           <span class="text-sm">Cafe Reports</span>
         </a>
+        <a href="/billing/payments/approval/" class="sidebar-link sidebar-nav-link {% if '/billing/payments/approval' in request.path %}active{% endif %}" style="position:relative">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="text-sm">Payment Approvals</span>
+          {% if pending_payments_count %}
+          <span style="background:#f59e0b;color:#000;border-radius:9999px;font-size:10px;font-weight:800;padding:1px 6px;margin-left:auto">{{ pending_payments_count }}</span>
+          {% endif %}
+        </a>
       </div>
       {% endif %}
     </nav>
