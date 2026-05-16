@@ -28,6 +28,10 @@ class Member(models.Model):
     membership_plan = models.ForeignKey(MembershipPlan, on_delete=models.PROTECT, related_name='members')
     expiry_date = models.DateField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    is_flagged = models.BooleanField(
+        default=False,
+        help_text='Flagged members are blocked from face recognition attendance.',
+    )
 
     def __str__(self):
         return self.full_name

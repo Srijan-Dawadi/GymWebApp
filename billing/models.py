@@ -9,6 +9,12 @@ class Payment(models.Model):
         ('transfer', 'Transfer'),
     ]
 
+    APPROVAL_STATUS = [
+        ('pending',  'Pending Review'),
+        ('approved', 'Approved'),
+        ('flagged',  'Flagged'),
+    ]
+
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=8, decimal_places=2)
     date_paid = models.DateField()
@@ -17,8 +23,20 @@ class Payment(models.Model):
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
     notes = models.TextField(blank=True)
 
+    # ── Approval workflow ──────────────────────────────────────
+    approval_status = models.CharField(
+        max_length=10, choices=APPROVAL_STATUS, default='pending',
+        db_index=True,
+    )
+    reviewed_by = models.ForeignKey(
+        'auth.User', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='reviewed_payments',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    flag_reason = models.TextField(blank=True)
+
     def __str__(self):
-        return f"{self.member.full_name} — ${self.amount} ({self.date_paid})"
+        return f"{self.member.full_name} — ${self.amount} ({self.date_paid}) [{self.approval_status}]"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

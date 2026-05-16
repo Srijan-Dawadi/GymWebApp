@@ -154,13 +154,19 @@ def checkin_api(request):
             'message': f"{member.full_name}'s membership is suspended.",
         }, status=200)
 
+    if member.is_flagged:
+        return JsonResponse({
+            'status': 'flagged',
+            'member_name': member.full_name,
+            'message': f"{member.full_name} is flagged and cannot use face attendance. Please contact the admin.",
+        }, status=200)
+
     if member.status == 'expired':
         return JsonResponse({
             'status': 'expired',
             'member_name': member.full_name,
             'message': f"{member.full_name}'s membership expired on {member.expiry_date}. Please renew.",
         }, status=200)
-
     today = timezone.localdate()
     try:
         Attendance.objects.create(member=member, date=today, method='face')
