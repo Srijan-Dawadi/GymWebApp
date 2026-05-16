@@ -30,10 +30,26 @@ class CafeView(StaffRequiredMixin, View):
         )
         menu_items = MenuItem.objects.filter(is_active=True).order_by('name')
 
+        # Pass created_at as Unix timestamps for the live order timer in the template
+        import time as _time
+        active_orders_list = list(active_orders)
+        for o in active_orders_list:
+            o.created_at_ts = int(o.created_at.timestamp())
+
+        # Compute today's summary for the history header
+        from django.db.models import Sum, F
+        today_paid = Order.objects.filter(status='payment_received', created_at__date=today)
+        today_order_count = today_paid.count()
+        today_revenue = today_paid.aggregate(
+            t=Sum(F('items__unit_price') * F('items__quantity'))
+        )['t'] or 0
+
         return render(request, self.template_name, {
-            'active_orders': active_orders,
+            'active_orders': active_orders_list,
             'history_orders': history_orders,
             'menu_items': menu_items,
+            'today_order_count': today_order_count,
+            'today_revenue': today_revenue,
         })
 
 
