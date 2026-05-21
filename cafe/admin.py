@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MenuItem, Order, OrderItem
+from .models import MenuItem, Order, OrderItem, CafeInventoryItem
 
 
 @admin.register(MenuItem)
@@ -23,3 +23,11 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ('table_number',)
     readonly_fields = ('total',)
     inlines = [OrderItemInline]
+
+
+@admin.register(CafeInventoryItem)
+class CafeInventoryItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'category', 'quantity', 'unit', 'status', 'updated_at')
+    list_filter = ('category', 'status')
+    search_fields = ('name', 'description')
+    readonly_fields = ('created_at', 'updated_at')

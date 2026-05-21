@@ -7,8 +7,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
+from django.db.models import Q, Sum, F
+from django.db.models.functions import TruncDate, TruncHour
+
 from accounts.mixins import AdminRequiredMixin, StaffRequiredMixin
-from .models import MenuItem, Order, OrderItem
+from .models import MenuItem, Order, OrderItem, CafeInventoryItem, CafeCategory
 
 
 class CafeView(StaffRequiredMixin, View):
@@ -157,7 +160,11 @@ class MenuItemListView(AdminRequiredMixin, View):
 
     def get(self, request):
         menu_items = MenuItem.objects.all().order_by('name')
-        return render(request, self.template_name, {'menu_items': menu_items})
+        active_count = menu_items.filter(is_active=True).count()
+        return render(request, self.template_name, {
+            'menu_items': menu_items,
+            'active_count': active_count,
+        })
 
 
 class MenuItemAddView(AdminRequiredMixin, View):
@@ -356,3 +363,144 @@ class CafeReportsView(AdminRequiredMixin, View):
             'hourly_data': json.dumps(hourly_buckets),
         }
         return render(request, self.template_name, ctx)
+
+# ── Cafe Inventory (Staff/Admin) ──────────────────────────────────────────────
+
+class CafeInventoryView(StaffRequiredMixin, View):
+
+    def get(self, request):
+        items = CafeInventoryItem.objects.all()
+
+        # Summary stats
+        total_items = CafeInventoryItem.objects.count()
+        total_qty = CafeInventoryItem.objects.aggregate(t=Sum('quantity'))['t'] or 0
+        needs_attention = CafeInventoryItem.objects.filter(
+            status__in=['maintenance', 'out_of_stock', 'low_stock']
+        ).count()
+
+        categories = CafeCategory.choices
+
+        context = {
+            'items': items,
+            'categories': categories,
+            'total_items': total_items,
+            'total_qty': total_qty,
+            'needs_attention': needs_attention,
+            'status_choices': [
+                ('good', 'Good / In Stock'),
+                ('maintenance', 'Needs Maintenance'),
+                ('out_of_stock', 'Out of Stock'),
+                ('low_stock', 'Low Stock'),
+            ],
+        }
+        return render(request, 'cafe/inventory.html', context)
+
+
+class CafeInventoryAddView(AdminRequiredMixin, View):
+    login_url = '/accounts/login/'
+
+    def post(self, request):
+        name = request.POST.get('name', '').strip()
+        category = request.POST.get('category', '')
+        description = request.POST.get('description', '').strip()
+        quantity = request.POST.get('quantity', 1)
+        status = request.POST.get('status', 'good')
+        unit = request.POST.get('unit', 'pcs').strip()
+        notes = request.POST.get('notes', '').strip()
+
+        if not name or not category:
+            messages.error(request, 'Name and category are required.')
+            return redirect('cafe:inventory')
+
+        try:
+            quantity = int(quantity)
+        except (ValueError, TypeError):
+            messages.error(request, 'Invalid quantity value.')
+            return redirect('cafe:inventory')
+
+        CafeInventoryItem.objects.create(
+            name=name,
+            category=category,
+            description=description,
+            quantity=quantity,
+            status=status,
+            unit=unit,
+            notes=notes,
+        )
+        messages.success(request, f'"{name}" added to cafe inventory.')
+        return redirect('cafe:inventory')
+
+
+class CafeInventoryEditView(AdminRequiredMixin, View):
+    login_url = '/accounts/login/'
+
+    def post(self, request, pk):
+        item = get_object_or_404(CafeInventoryItem, pk=pk)
+        item.name = request.POST.get('name', item.name).strip()
+        item.category = request.POST.get('category', item.category)
+        item.description = request.POST.get('description', '').strip()
+        item.quantity = int(request.POST.get('quantity', item.quantity))
+        item.status = request.POST.get('status', item.status)
+        item.unit = request.POST.get('unit', item.unit).strip()
+        item.notes = request.POST.get('notes', '').strip()
+        item.save()
+        messages.success(request, f'"{item.name}" updated.')
+        return redirect('cafe:inventory')
+
+
+class CafeInventoryDeleteView(AdminRequiredMixin, View):
+    login_url = '/accounts/login/'
+
+    def post(self, request, pk):
+        item = get_object_or_404(CafeInventoryItem, pk=pk)
+        name = item.name
+        item.delete()
+        messages.success(request, f'"{name}" removed from cafe inventory.')
+        return redirect('cafe:inventory')
+
+
+class CafeInventorySearchView(StaffRequiredMixin, View):
+
+    def get(self, request):
+        q = request.GET.get('q', '').strip()
+        category = request.GET.get('category', '')
+        status = request.GET.get('status', '')
+
+        items = CafeInventoryItem.objects.all()
+        if q:
+            items = items.filter(Q(name__icontains=q) | Q(description__icontains=q))
+        if category:
+            items = items.filter(category=category)
+        if status:
+            items = items.filter(status=status)
+
+        results = [
+            {
+                'id': item.pk,
+                'name': item.name,
+                'category': item.category_label,
+                'description': item.description,
+                'quantity': item.quantity,
+                'status': item.status,
+                'status_label': item.status_label,
+                'unit': item.unit,
+            }
+            for item in items
+        ]
+        return JsonResponse({'results': results, 'count': len(results)})
+
+
+class CafeInventoryStatusView(StaffRequiredMixin, View):
+    """Staff and admin can update the status of an item."""
+
+    def post(self, request, pk):
+        item = get_object_or_404(CafeInventoryItem, pk=pk)
+        new_status = request.POST.get('status', '').strip()
+        valid_statuses = ['good', 'maintenance', 'out_of_stock', 'low_stock']
+        if new_status not in valid_statuses:
+            messages.error(request, 'Invalid status value.')
+            return redirect('cafe:inventory')
+        item.status = new_status
+        item.save(update_fields=['status', 'updated_at'])
+        messages.success(request, f'"{item.name}" status updated to {item.status_label}.')
+        return redirect('cafe:inventory')
