@@ -338,13 +338,17 @@
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
         <span class="text-sm">Payments</span>
       </a>
-      <a href="/inventory/" class="sidebar-link sidebar-nav-link {% if '/inventory' in request.path %}active{% endif %}">
+      <a href="/inventory/" class="sidebar-link sidebar-nav-link {% if '/inventory' in request.path and '/cafe/inventory' not in request.path %}active{% endif %}">
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
         <span class="text-sm">Inventory</span>
       </a>
-      <a href="/cafe/" class="sidebar-link sidebar-nav-link {% if '/cafe' in request.path and '/cafe/menu' not in request.path and '/cafe/reports' not in request.path %}active{% endif %}">
+      <a href="/cafe/" class="sidebar-link sidebar-nav-link {% if '/cafe' in request.path and '/cafe/menu' not in request.path and '/cafe/reports' not in request.path and '/cafe/inventory' not in request.path %}active{% endif %}">
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zm4-4h8v4H6V4z"/></svg>
         <span class="text-sm">Cafe</span>
+      </a>
+      <a href="/cafe/inventory/" class="sidebar-link sidebar-nav-link {% if '/cafe/inventory' in request.path %}active{% endif %}">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span class="text-sm">Cafe Inventory</span>
       </a>
       {% if user.profile.role == 'admin' %}
       <div class="pt-4">
@@ -360,7 +364,7 @@
           <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
           <span class="text-sm">Users</span>
         </a>
-        <a href="/dashboard/reports/" class="sidebar-link sidebar-nav-link {% if '/reports' in request.path %}active{% endif %}">
+        <a href="/dashboard/reports/" class="sidebar-link sidebar-nav-link {% if '/reports' in request.path and '/cafe/reports' not in request.path %}active{% endif %}">
           <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           <span class="text-sm">Reports</span>
         </a>

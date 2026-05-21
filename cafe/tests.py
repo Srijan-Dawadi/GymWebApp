@@ -642,3 +642,117 @@ class Property11HistorySortOrderTest(HypothesisTestCase):
                 history[i].payment_received_at,
                 history[i + 1].payment_received_at,
             )
+from django.test import TestCase, Client
+from django.contrib.auth.models import User
+from django.urls import reverse
+from cafe.models import CafeInventoryItem, CafeCategory
+from accounts.models import Profile
+
+class CafeInventoryTests(TestCase):
+    def setUp(self):
+        # Clear any seeded data to ensure test isolation
+        CafeInventoryItem.objects.all().delete()
+
+        # Create Admin
+        self.admin_user = User.objects.create_user(username='admin', password='password')
+        # Profile is created by signal, so we update it
+        if hasattr(self.admin_user, 'profile'):
+            self.admin_user.profile.role = 'admin'
+            self.admin_user.profile.save()
+        else:
+            Profile.objects.create(user=self.admin_user, role='admin')
+        
+        # Create Staff
+        self.staff_user = User.objects.create_user(username='staff', password='password')
+        # Profile defaults to 'staff' via signal
+        
+        self.client = Client()
+
+    def test_model_str(self):
+        item = CafeInventoryItem.objects.create(
+            name='Coffee Beans',
+            category='ingredients',
+            quantity=10,
+            unit='kg'
+        )
+        self.assertEqual(str(item), 'Coffee Beans (10 kg)')
+
+    def test_inventory_list_view(self):
+        self.client.login(username='staff', password='password')
+        response = self.client.get(reverse('cafe:inventory'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'cafe/inventory.html')
+
+    def test_admin_can_add_item(self):
+        self.client.login(username='admin', password='password')
+        data = {
+            'name': 'New Item',
+            'category': 'beverages',
+            'quantity': 5,
+            'unit': 'pcs',
+            'status': 'good'
+        }
+        response = self.client.post(reverse('cafe:inventory_add'), data)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(CafeInventoryItem.objects.filter(name='New Item').exists())
+
+    def test_staff_cannot_add_item(self):
+        self.client.login(username='staff', password='password')
+        data = {
+            'name': 'Staff Item',
+            'category': 'beverages',
+            'quantity': 5,
+            'unit': 'pcs',
+            'status': 'good'
+        }
+        response = self.client.post(reverse('cafe:inventory_add'), data)
+        self.assertEqual(response.status_code, 403) # PermissionDenied
+
+    def test_admin_can_edit_item(self):
+        item = CafeInventoryItem.objects.create(name='Old Name', category='supplies', quantity=1)
+        self.client.login(username='admin', password='password')
+        data = {
+            'name': 'Updated Name',
+            'category': 'supplies',
+            'quantity': 10,
+            'unit': 'packs',
+            'status': 'low_stock'
+        }
+        response = self.client.post(reverse('cafe:inventory_edit', args=[item.pk]), data)
+        self.assertEqual(response.status_code, 302)
+        item.refresh_from_db()
+        self.assertEqual(item.name, 'Updated Name')
+        self.assertEqual(item.quantity, 10)
+
+    def test_admin_can_delete_item(self):
+        item = CafeInventoryItem.objects.create(name='Delete Me', category='supplies', quantity=1)
+        self.client.login(username='admin', password='password')
+        response = self.client.post(reverse('cafe:inventory_delete', args=[item.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(CafeInventoryItem.objects.filter(pk=item.pk).exists())
+
+    def test_staff_can_update_status(self):
+        item = CafeInventoryItem.objects.create(name='Status Item', category='ingredients', quantity=5, status='good')
+        self.client.login(username='staff', password='password')
+        response = self.client.post(reverse('cafe:inventory_status', args=[item.pk]), {'status': 'low_stock'})
+        self.assertEqual(response.status_code, 302)
+        item.refresh_from_db()
+        self.assertEqual(item.status, 'low_stock')
+
+    def test_search_view(self):
+        CafeInventoryItem.objects.create(name='Espresso Beans', category='ingredients', quantity=5)
+        CafeInventoryItem.objects.create(name='Paper Napkins', category='supplies', quantity=100)
+        
+        self.client.login(username='staff', password='password')
+        
+        # Search by name
+        response = self.client.get(reverse('cafe:inventory_search'), {'q': 'Espresso'})
+        data = response.json()
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['results'][0]['name'], 'Espresso Beans')
+        
+        # Search by category
+        response = self.client.get(reverse('cafe:inventory_search'), {'category': 'supplies'})
+        data = response.json()
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['results'][0]['name'], 'Paper Napkins')
