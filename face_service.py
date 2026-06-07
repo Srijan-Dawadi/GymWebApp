@@ -27,10 +27,10 @@ except ImportError:
     ONNX_AVAILABLE = False
 
 # ── Thread-safe singletons ────────────────────────────────────────
-_face_app   = None
-_spoof_sess = None
-_face_lock  = threading.Lock()
-_spoof_lock = threading.Lock()
+_face_app        = None   # None = not yet loaded; False = failed to load
+_spoof_sess      = None   # None = not yet loaded; False = failed to load
+_face_lock       = threading.Lock()
+_spoof_lock      = threading.Lock()
 
 _ANTISPOOF_MODEL = os.path.join(
     os.path.dirname(__file__), 'static', 'antispoof', 'antispoof.onnx'
@@ -40,19 +40,30 @@ LIVENESS_THRESHOLD = 0.45
 
 
 def _get_face_app():
-    """Load InsightFace once, thread-safe. Returns None if unavailable."""
+    """Load InsightFace once, thread-safe.
+    Returns the app on success, None if unavailable or failed to load.
+    Sets _face_app to False on load failure so we don't retry on every call.
+    """
     if not INSIGHTFACE_AVAILABLE:
         return None
     global _face_app
     if _face_app is not None:
-        return _face_app
+        # False means a previous load attempt failed — don't retry
+        return _face_app if _face_app is not False else None
     with _face_lock:
         if _face_app is None:
-            from insightface.app import FaceAnalysis
-            app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
-            app.prepare(ctx_id=-1, det_size=(640, 640))
-            _face_app = app
-    return _face_app
+            try:
+                from insightface.app import FaceAnalysis
+                app = FaceAnalysis(name='buffalo_m', providers=['CPUExecutionProvider'])
+                app.prepare(ctx_id=-1, det_size=(320, 320))
+                _face_app = app
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(
+                    'InsightFace model failed to load: %s', e, exc_info=True
+                )
+                _face_app = False  # sentinel: don't retry
+    return _face_app if _face_app is not False else None
 
 
 def _get_spoof_session():
@@ -76,31 +87,41 @@ def _get_spoof_session():
 
 
 def _check_liveness(img_bgr, bbox) -> tuple:
-    """Run anti-spoof check. Returns (is_real: bool, score: float)."""
-    sess = _get_spoof_session()
-    if sess is None:
-        return True, 1.0
+    """Run anti-spoof check. Returns (is_real: bool, score: float).
+    On any error, fails open (returns True, 1.0) so a liveness failure
+    never silently blocks a legitimate check-in due to a code bug.
+    """
+    try:
+        sess = _get_spoof_session()
+        if sess is None:
+            return True, 1.0
 
-    import cv2
-    x1, y1, x2, y2 = [int(v) for v in bbox]
-    h, w = img_bgr.shape[:2]
-    pad_x = int((x2 - x1) * 0.2)
-    pad_y = int((y2 - y1) * 0.2)
-    x1 = max(0, x1 - pad_x); y1 = max(0, y1 - pad_y)
-    x2 = min(w, x2 + pad_x); y2 = min(h, y2 + pad_y)
-    face_crop = img_bgr[y1:y2, x1:x2]
-    if face_crop.size == 0:
+        import cv2
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        h, w = img_bgr.shape[:2]
+        pad_x = int((x2 - x1) * 0.2)
+        pad_y = int((y2 - y1) * 0.2)
+        x1 = max(0, x1 - pad_x); y1 = max(0, y1 - pad_y)
+        x2 = min(w, x2 + pad_x); y2 = min(h, y2 + pad_y)
+        face_crop = img_bgr[y1:y2, x1:x2]
+        if face_crop.size == 0:
+            return True, 1.0
+        face_resized = cv2.resize(face_crop, (128, 128))
+        face_rgb = cv2.cvtColor(face_resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        face_tensor = np.transpose(face_rgb, (2, 0, 1))[np.newaxis, :]
+        input_name = sess.get_inputs()[0].name
+        outputs = sess.run(None, {input_name: face_tensor})
+        logits = outputs[0][0]
+        exp = np.exp(logits - np.max(logits))
+        probs = exp / exp.sum()
+        real_score = float(probs[1])
+        return real_score >= LIVENESS_THRESHOLD, real_score
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            'Liveness check failed unexpectedly, failing open: %s', e
+        )
         return True, 1.0
-    face_resized = cv2.resize(face_crop, (128, 128))
-    face_rgb = cv2.cvtColor(face_resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-    face_tensor = np.transpose(face_rgb, (2, 0, 1))[np.newaxis, :]
-    input_name = sess.get_inputs()[0].name
-    outputs = sess.run(None, {input_name: face_tensor})
-    logits = outputs[0][0]
-    exp = np.exp(logits - np.max(logits))
-    probs = exp / exp.sum()
-    real_score = float(probs[1])
-    return real_score >= LIVENESS_THRESHOLD, real_score
 
 
 def extract_embedding_for_enrollment(image_bytes: bytes) -> dict:
@@ -182,23 +203,42 @@ def find_best_match(probe_embedding: list, threshold: float = 0.4) -> tuple:
     Match probe_embedding against all stored member multi-angle embeddings.
     face_descriptor = [[emb1], [emb2], [emb3], [emb4], [emb5]]
     Returns (member_id, best_score) or (None, 0.0).
+    Malformed or mismatched embeddings are skipped silently.
     """
     if not INSIGHTFACE_AVAILABLE or probe_embedding is None:
         return None, 0.0
 
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        probe = np.array(probe_embedding, dtype=np.float32)
+    except Exception as e:
+        logger.warning('find_best_match: could not convert probe embedding: %s', e)
+        return None, 0.0
+
     from members.models import Member
-    probe = np.array(probe_embedding, dtype=np.float32)
     best_id, best_score = None, -1.0
 
     for m in Member.objects.exclude(face_descriptor__isnull=True).values('id', 'face_descriptor'):
         descriptor = m['face_descriptor']
-        if not descriptor:
+        if not descriptor or not isinstance(descriptor, list):
             continue
         for emb in descriptor:
-            stored = np.array(emb, dtype=np.float32)
-            score = float(np.dot(probe, stored))
-            if score > best_score:
-                best_score = score
-                best_id = m['id']
+            try:
+                stored = np.array(emb, dtype=np.float32)
+                if stored.shape != probe.shape:
+                    # Dimension mismatch — skip this embedding silently
+                    continue
+                score = float(np.dot(probe, stored))
+                if score > best_score:
+                    best_score = score
+                    best_id = m['id']
+            except Exception as e:
+                logger.warning(
+                    'find_best_match: skipping malformed embedding for member %s: %s',
+                    m['id'], e
+                )
+                continue
 
     return (best_id, best_score) if best_score >= threshold else (None, best_score)
