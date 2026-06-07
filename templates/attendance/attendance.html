@@ -214,10 +214,23 @@
   {% endif %}
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script>
-const CHECKIN_URL = '/attendance/checkin/';
-const SCAN_INTERVAL_MS = 3000;
-let cameraStream = null, scanInterval = null, isScanning = false, lastCheckedIn = {};
+const CHECKIN_URL    = '/attendance/checkin/';
+const FACEAPI_MODELS = '/static/face-api/models/';
+
+let cameraStream  = null;
+let isScanning    = false;
+let lastCheckedIn = {};
+let faceApiReady  = false;   // true once models loaded
+let detectLoop    = null;    // requestAnimationFrame handle
+
+// ── State machine ─────────────────────────────────────────────
+// 'idle'      : camera off
+// 'watching'  : face-api scanning for a face
+// 'verifying' : server recognition in progress
+// 'cooldown'  : brief pause after result before watching again
+let scanState = 'idle';
 const video = document.getElementById('fr-video');
 const canvas = document.getElementById('fr-canvas');
 const statusEl = document.getElementById('fr-status');
@@ -254,15 +267,215 @@ function showSuccessOverlay(name) {
   successOvl.classList.remove('hidden'); successOvl.classList.add('flex');
   setTimeout(() => {
     successOvl.classList.add('hidden'); successOvl.classList.remove('flex');
-    setStatus('🎥 Scanning — ready for next member...');
-    if (cameraStream && !scanInterval) scanInterval = setInterval(scanFrame, SCAN_INTERVAL_MS);
+    // Resume watching after success cooldown
+    if (cameraStream) {
+      scanState = 'watching';
+      setStatus('👋 Ready — waiting for next member...');
+      startDetectLoop();
+    }
   }, 3000);
 }
 
 function showSpoofOverlay() {
   spoofOvl.classList.remove('hidden'); spoofOvl.classList.add('flex');
-  setTimeout(() => { spoofOvl.classList.add('hidden'); spoofOvl.classList.remove('flex'); }, 2500);
+  setTimeout(() => {
+    spoofOvl.classList.add('hidden'); spoofOvl.classList.remove('flex');
+    // Resume watching after spoof cooldown
+    if (cameraStream && scanState !== 'idle') {
+      scanState = 'watching';
+      startDetectLoop();
+    }
+  }, 2500);
 }
+
+// ── Load face-api.js models ───────────────────────────────────
+async function loadFaceApiModels() {
+  if (faceApiReady) return true;
+  try {
+    setStatus('⏳ Loading face detection models...');
+    await faceapi.nets.ssdMobilenetv1.loadFromUri(FACEAPI_MODELS);
+    faceApiReady = true;
+    return true;
+  } catch (e) {
+    console.warn('face-api model load failed, falling back to interval scan:', e);
+    return false;
+  }
+}
+
+// ── Detection loop: runs every 300ms, lightweight client-side ─
+let _lastDetectTime = 0;
+
+function startDetectLoop() {
+  if (detectLoop) cancelAnimationFrame(detectLoop);
+  function loop(ts) {
+    if (scanState !== 'watching' || !cameraStream) return;
+    detectLoop = requestAnimationFrame(loop);
+    if (ts - _lastDetectTime < 300) return;   // throttle to 300ms
+    _lastDetectTime = ts;
+    runDetection();
+  }
+  detectLoop = requestAnimationFrame(loop);
+}
+
+function stopDetectLoop() {
+  if (detectLoop) { cancelAnimationFrame(detectLoop); detectLoop = null; }
+}
+
+async function runDetection() {
+  if (!faceApiReady || scanState !== 'watching') return;
+  if (video.readyState < 2) return;  // video not ready yet
+
+  try {
+    const detection = await faceapi.detectSingleFace(
+      video,
+      new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })
+    );
+
+    if (detection) {
+      // Face found — wait 1.5s for member to naturally face camera, then verify
+      scanState = 'verifying';
+      stopDetectLoop();
+      setStatus('🔍 Face detected — hold still...');
+      setTimeout(sendToServer, 1500);
+    }
+    // No face → just keep looping silently
+  } catch (e) {
+    console.warn('Detection error:', e);
+  }
+}
+
+// ── Fallback: interval scan if face-api unavailable ──────────
+let _fallbackInterval = null;
+
+function startFallbackScan() {
+  if (_fallbackInterval) return;
+  setStatus('🎥 Camera ready — scanning every 3 seconds...');
+  _fallbackInterval = setInterval(async () => {
+    if (!cameraStream || isScanning) return;
+    await sendToServer();
+  }, 3000);
+}
+
+function stopFallbackScan() {
+  if (_fallbackInterval) { clearInterval(_fallbackInterval); _fallbackInterval = null; }
+}
+
+// ── Core: capture frame and POST to server ───────────────────
+async function sendToServer() {
+  if (!cameraStream || isScanning) {
+    if (scanState === 'verifying') {
+      scanState = 'watching';
+      startDetectLoop();
+    }
+    return;
+  }
+  isScanning = true;
+
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageB64 = canvas.toDataURL('image/jpeg', 0.7);
+
+  try {
+    const res  = await fetch(CHECKIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ image: imageB64 }),
+    });
+    const data = await res.json();
+
+    if (data.status === 'ok') {
+      const now = Date.now(), id = data.member_id;
+      if (!lastCheckedIn[id] || now - lastCheckedIn[id] > 10000) {
+        lastCheckedIn[id] = now;
+        showSuccessOverlay(data.member_name);
+        setStatus(`✅ ${data.member_name} checked in!`, 'success');
+        addCheckinToList(data.member_name, 'face');
+        scanState = 'cooldown';  // showSuccessOverlay resumes after 3s
+      } else {
+        // Same person still standing there after cooldown — resume
+        scanState = 'watching';
+        startDetectLoop();
+      }
+    } else if (data.status === 'duplicate') {
+      showResult(`${data.member_name} already checked in today`, false);
+      scanState = 'watching';
+      startDetectLoop();
+    } else if (data.status === 'spoof') {
+      showSpoofOverlay();
+      showResult('Liveness check failed — ensure good lighting.', false);
+      scanState = 'cooldown';  // showSpoofOverlay resumes after 2.5s
+    } else if (data.status === 'no_face') {
+      scanState = 'watching';
+      startDetectLoop();
+    } else if (data.status === 'busy') {
+      scanState = 'watching';
+      setTimeout(startDetectLoop, 1000);
+    } else if (data.status === 'expired') {
+      showResult(data.message, false);
+      lastCheckedIn[data.member_id] = Date.now();
+      setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
+      scanState = 'watching';
+      setTimeout(startDetectLoop, 2000);
+    } else if (data.status === 'suspended') {
+      showResult(data.message, false);
+      lastCheckedIn[data.member_id] = Date.now();
+      setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
+      scanState = 'watching';
+      setTimeout(startDetectLoop, 2000);
+    } else if (data.status === 'flagged') {
+      showResult(data.message, false);
+      scanState = 'watching';
+      setTimeout(startDetectLoop, 2000);
+    } else if (data.status === 'unknown') {
+      showResult('Face not recognised. Try again.', false);
+      scanState = 'watching';
+      setTimeout(startDetectLoop, 1500);
+    } else if (data.status === 'error') {
+      setStatus(`⚠️ ${data.message}`, 'error');
+      scanState = 'watching';
+      setTimeout(startDetectLoop, 3000);
+    }
+  } catch (err) {
+    console.error('Scan error:', err);
+    scanState = 'watching';
+    startDetectLoop();
+  }
+  isScanning = false;
+}
+
+// ── Camera start / stop ───────────────────────────────────────
+async function startCamera() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 } });
+    video.srcObject = cameraStream;
+    document.getElementById('camera-gate').classList.add('hidden');
+    document.getElementById('camera-panel').classList.remove('hidden');
+    scanState = 'watching';
+
+    const modelsLoaded = await loadFaceApiModels();
+    if (modelsLoaded) {
+      setStatus('👋 Ready — waiting for a member...');
+      startDetectLoop();
+    } else {
+      // face-api unavailable — fall back to 3s interval
+      startFallbackScan();
+    }
+  } catch (err) {
+    alert('Camera access denied. Please allow camera permissions.');
+  }
+}
+
+function stopCamera() {
+  scanState = 'idle';
+  stopDetectLoop();
+  stopFallbackScan();
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  document.getElementById('camera-panel').classList.add('hidden');
+  document.getElementById('camera-gate').classList.remove('hidden');
+}
+
+function getCookie(name) { const v = `; ${document.cookie}`; const p = v.split(`; ${name}=`); if (p.length === 2) return p.pop().split(';').shift(); return ''; }
 
 function addCheckinToList(name, method) {
   const list = document.getElementById('checkin-list');
@@ -272,8 +485,7 @@ function addCheckinToList(name, method) {
   const dateStr = now.toLocaleDateString('en-CA');
   const methodLabel = method.charAt(0).toUpperCase() + method.slice(1);
   const methodStyle = method === 'face' ? 'background:rgba(30,215,96,0.1);color:#1ed760' : 'background:#333333;color:#cbcbcb';
-  const empty = list.querySelector('.empty-checkin');
-  if (empty) empty.remove();
+  list.querySelector('.empty-checkin')?.remove();
   const item = document.createElement('div');
   item.className = 'flex items-center justify-between py-2 px-3 rounded-lg checkin-item';
   item.innerHTML = `<span style="font-size:13px;font-weight:700;color:#ffffff">${name}</span><div class="flex items-center gap-2"><span style="font-size:12px;color:#b3b3b3">${timeStr}</span><span style="font-size:11px;font-weight:700;border-radius:9999px;padding:2px 8px;${methodStyle}">${methodLabel}</span></div>`;
@@ -282,67 +494,11 @@ function addCheckinToList(name, method) {
   if (countEl) { const cur = parseInt(countEl.textContent.replace(/\D/g,''))||0; countEl.textContent = `(${cur+1})`; }
   const tbody = document.getElementById('history-tbody');
   if (tbody) {
-    const emptyRow = document.getElementById('history-empty');
-    if (emptyRow) emptyRow.remove();
+    document.getElementById('history-empty')?.remove();
     const tr = document.createElement('tr');
     tr.innerHTML = `<td class="px-5 py-3" style="color:#ffffff;font-weight:700">${name}</td><td class="px-5 py-3" style="color:#b3b3b3">${dateStr}</td><td class="px-5 py-3" style="color:#b3b3b3">${timeStr}</td><td class="px-5 py-3"><span style="font-size:11px;font-weight:700;border-radius:9999px;padding:2px 8px;${methodStyle}">${methodLabel}</span></td>`;
     tbody.prepend(tr);
   }
 }
-
-async function startCamera() {
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 } });
-    video.srcObject = cameraStream;
-    document.getElementById('camera-gate').classList.add('hidden');
-    document.getElementById('camera-panel').classList.remove('hidden');
-    setStatus('🎥 Camera ready — scanning every 3 seconds...');
-    scanInterval = setInterval(scanFrame, SCAN_INTERVAL_MS);
-  } catch (err) { alert('Camera access denied. Please allow camera permissions.'); }
-}
-
-function stopCamera() {
-  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
-  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-  document.getElementById('camera-panel').classList.add('hidden');
-  document.getElementById('camera-gate').classList.remove('hidden');
-}
-
-async function scanFrame() {
-  if (!cameraStream || isScanning) return;
-  isScanning = true;
-  canvas.width = video.videoWidth || 640; canvas.height = video.videoHeight || 480;
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-  const imageB64 = canvas.toDataURL('image/jpeg', 0.95);
-  try {
-    const res = await fetch(CHECKIN_URL, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')}, body:JSON.stringify({image:imageB64}) });
-    const data = await res.json();
-    if (data.status === 'ok') {
-      const now = Date.now(), id = data.member_id;
-      if (!lastCheckedIn[id] || now - lastCheckedIn[id] > 10000) {
-        lastCheckedIn[id] = now;
-        clearInterval(scanInterval); scanInterval = null;
-        showSuccessOverlay(data.member_name);
-        setStatus(`✅ ${data.member_name} checked in!`, 'success');
-        addCheckinToList(data.member_name, 'face');
-      }
-    } else if (data.status === 'duplicate') {
-      showResult(`ℹ️ ${data.member_name} already checked in today`, false);
-    } else if (data.status === 'spoof') {
-      showSpoofOverlay(); showResult('🚫 Liveness check failed — ensure good lighting.', false);
-    } else if (data.status === 'expired') {
-      showResult(`⛔ ${data.message}`, false); lastCheckedIn[data.member_id] = Date.now();
-      setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
-    } else if (data.status === 'suspended') {
-      showResult(`🚫 ${data.message}`, false); lastCheckedIn[data.member_id] = Date.now();
-      setTimeout(() => delete lastCheckedIn[data.member_id], 15000);
-    } else if (data.status === 'error') {
-      setStatus(`⚠️ ${data.message}`, 'error');
-    }
-  } catch (err) { console.error('Scan error:', err); }
-  isScanning = false;
-}
-
-function getCookie(name) { const v = `; ${document.cookie}`; const p = v.split(`; ${name}=`); if (p.length === 2) return p.pop().split(';').shift(); return ''; }
 </script>
 {% endblock %}

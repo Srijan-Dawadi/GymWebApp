@@ -1,6 +1,7 @@
 import base64
 import csv
 import json
+import threading
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -16,6 +17,11 @@ from accounts.mixins import AdminRequiredMixin
 from members.models import Member
 from .models import Attendance
 
+# ── Scan lock: reject concurrent face-recognition frames instead of queuing ──
+# The ML pipeline (InsightFace + ONNX) can take 2–8s on CPU.
+# Without this, rapid frames pile up and exhaust server memory/threads.
+_scan_lock = threading.Lock()
+
 
 @method_decorator(login_required, name='dispatch')
 class AttendanceView(View):
@@ -28,9 +34,24 @@ class AttendanceView(View):
         qs = Attendance.objects.select_related('member').order_by('-date', '-check_in_time')
 
         # ── Filters ──────────────────────────────────────────────
+        from datetime import datetime
+
         q          = request.GET.get('q', '').strip()
         date_from  = request.GET.get('date_from', '').strip()
         date_to    = request.GET.get('date_to', '').strip()
+
+        # Validate date strings — silently discard anything that isn't YYYY-MM-DD
+        def is_valid_date(s):
+            try:
+                datetime.strptime(s, '%Y-%m-%d')
+                return True
+            except ValueError:
+                return False
+
+        if date_from and not is_valid_date(date_from):
+            date_from = ''
+        if date_to and not is_valid_date(date_to):
+            date_to = ''
 
         if q:
             qs = qs.filter(member__full_name__icontains=q)
@@ -55,7 +76,11 @@ class AttendanceView(View):
 
     def post(self, request):
         """Manual check-in."""
-        member_id = request.POST.get('member_id')
+        member_id = request.POST.get('member_id', '').strip()
+        if not member_id:
+            messages.error(request, 'Please select a member before checking in.')
+            return redirect('attendance')
+
         member = get_object_or_404(Member, pk=member_id)
 
         # Sync status before checking
@@ -109,11 +134,17 @@ def checkin_api(request):
         return JsonResponse({'error': 'Invalid image data'}, status=400)
 
     # Extract embedding with liveness check
+    # Acquire the scan lock non-blocking — if another frame is already being
+    # processed, reject this one immediately rather than queuing it.
     from face_service import extract_embedding, find_best_match
+    if not _scan_lock.acquire(blocking=False):
+        return JsonResponse({'status': 'busy', 'message': 'Server is processing another frame'}, status=200)
     try:
         result = extract_embedding(image_bytes)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    finally:
+        _scan_lock.release()
 
     status = result.get('status')
 
@@ -147,18 +178,19 @@ def checkin_api(request):
     M.sync_expired_statuses()
     member.refresh_from_db()
 
+    # Check flags/status in priority order: flagged → suspended → expired
+    if member.is_flagged:
+        return JsonResponse({
+            'status': 'flagged',
+            'member_name': member.full_name,
+            'message': f"{member.full_name} is flagged and cannot use face attendance. Contact admin.",
+        }, status=200)
+
     if member.status == 'suspended':
         return JsonResponse({
             'status': 'suspended',
             'member_name': member.full_name,
             'message': f"{member.full_name}'s membership is suspended.",
-        }, status=200)
-
-    if member.is_flagged:
-        return JsonResponse({
-            'status': 'flagged',
-            'member_name': member.full_name,
-            'message': f"{member.full_name} is flagged and cannot use face attendance. Please contact the admin.",
         }, status=200)
 
     if member.status == 'expired':
@@ -167,6 +199,7 @@ def checkin_api(request):
             'member_name': member.full_name,
             'message': f"{member.full_name}'s membership expired on {member.expiry_date}. Please renew.",
         }, status=200)
+
     today = timezone.localdate()
     try:
         Attendance.objects.create(member=member, date=today, method='face')
