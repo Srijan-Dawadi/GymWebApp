@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Reports — 5 Star Fitness{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+
+{% block header_actions %}
+<div class="relative" id="export-wrapper">
+  <button onclick="toggleExport()"
+    style="background:#1ed760;color:#000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 20px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background 0.15s"
+    onmouseover="this.style.background='#1fdf64'" onmouseout="this.style.background='#1ed760'">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+    Export Excel
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </button>
+  <div id="export-menu" class="hidden absolute right-0 mt-2 w-52 z-50"
+    style="background:#282828;border:1px solid #4d4d4d;border-radius:8px;overflow:hidden;box-shadow:rgba(0,0,0,0.5) 0px 8px 24px">
+    <a href="/dashboard/reports/export/?type=summary"   class="flex items-center gap-3 px-4 py-3 text-sm transition-colors" style="color:#b3b3b3;text-decoration:none" onmouseover="this.style.background='#1f1f1f';this.style.color='#ffffff'" onmouseout="this.style.background='';this.style.color='#b3b3b3'">Full Summary Report</a>
+    <a href="/dashboard/reports/export/?type=members"   class="flex items-center gap-3 px-4 py-3 text-sm transition-colors" style="color:#b3b3b3;text-decoration:none;border-top:1px solid #282828" onmouseover="this.style.background='#1f1f1f';this.style.color='#ffffff'" onmouseout="this.style.background='';this.style.color='#b3b3b3'">Members List</a>
+    <a href="/dashboard/reports/export/?type=attendance" class="flex items-center gap-3 px-4 py-3 text-sm transition-colors" style="color:#b3b3b3;text-decoration:none;border-top:1px solid #282828" onmouseover="this.style.background='#1f1f1f';this.style.color='#ffffff'" onmouseout="this.style.background='';this.style.color='#b3b3b3'">Attendance Log</a>
+    <a href="/dashboard/reports/export/?type=payments"  class="flex items-center gap-3 px-4 py-3 text-sm transition-colors" style="color:#b3b3b3;text-decoration:none;border-top:1px solid #282828" onmouseover="this.style.background='#1f1f1f';this.style.color='#ffffff'" onmouseout="this.style.background='';this.style.color='#b3b3b3'">Payments Log</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+<!-- KPI row -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:16px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">Total Revenue</p>
+    <p style="font-size:28px;font-weight:700;color:#1ed760">Rs. {{ total_revenue }}</p>
+    <p style="font-size:12px;color:#b3b3b3;margin-top:4px">All time</p>
+  </div>
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:16px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">This Month</p>
+    <p style="font-size:28px;font-weight:700;color:#ffffff">Rs. {{ monthly_revenue }}</p>
+    <p style="font-size:12px;color:#b3b3b3;margin-top:4px">{{ today|date:"F Y" }}</p>
+  </div>
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:16px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">Retention Rate</p>
+    <p style="font-size:28px;font-weight:700;color:#539df5">{{ retention_rate }}%</p>
+    <p style="font-size:12px;color:#b3b3b3;margin-top:4px">{{ active_count }} of {{ total_members }} active</p>
+  </div>
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:16px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">Inactive This Month</p>
+    <p style="font-size:28px;font-weight:700;color:#ffa42b">{{ inactive_this_month }}</p>
+    <p style="font-size:12px;color:#b3b3b3;margin-top:4px">Active with no check-in</p>
+  </div>
+</div>
+
+<!-- Charts row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:20px">
+    <h3 style="font-size:14px;font-weight:700;color:#ffffff;margin-bottom:16px">Monthly Revenue — Last 6 Months</h3>
+    <div style="height:220px"><canvas id="revChart"></canvas></div>
+  </div>
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:20px">
+    <h3 style="font-size:14px;font-weight:700;color:#ffffff;margin-bottom:16px">Check-in Method Breakdown</h3>
+    <div class="flex items-center justify-center" style="height:180px"><canvas id="methodChart"></canvas></div>
+    <div class="flex justify-center gap-6 mt-3">
+      <div class="flex items-center gap-2" style="font-size:12px;color:#b3b3b3">
+        <span style="width:10px;height:10px;border-radius:50%;background:#1ed760;display:inline-block"></span>
+        Face Recognition — {{ face_count }}
+      </div>
+      <div class="flex items-center gap-2" style="font-size:12px;color:#b3b3b3">
+        <span style="width:10px;height:10px;border-radius:50%;background:#4d4d4d;display:inline-block"></span>
+        Manual — {{ manual_count }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Plan breakdown -->
+<div style="background:#181818;border:1px solid #282828;border-radius:8px;overflow:hidden;margin-bottom:20px">
+  <div style="padding:14px 20px;border-bottom:1px solid #282828;background:#1f1f1f">
+    <h3 style="font-size:14px;font-weight:700;color:#ffffff">Membership Plan Breakdown</h3>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm dark-table">
+      <thead>
+        <tr>
+          <th class="px-5 py-3">Plan</th>
+          <th class="px-5 py-3">Price</th>
+          <th class="px-5 py-3">Duration</th>
+          <th class="px-5 py-3">Total Members</th>
+          <th class="px-5 py-3">Active</th>
+          <th class="px-5 py-3">Active %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for plan in plan_stats %}
+        <tr>
+          <td class="px-5 py-3" style="color:#ffffff;font-weight:700">{{ plan.name }}</td>
+          <td class="px-5 py-3" style="color:#1ed760;font-weight:700">Rs. {{ plan.price }}</td>
+          <td class="px-5 py-3">{{ plan.duration_days }} days</td>
+          <td class="px-5 py-3">{{ plan.member_count }}</td>
+          <td class="px-5 py-3">{{ plan.active_count }}</td>
+          <td class="px-5 py-3">
+            {% if plan.member_count > 0 %}
+            {% widthratio plan.active_count plan.member_count 100 as pct %}
+            <div class="flex items-center gap-2">
+              <div style="flex:1;border-radius:9999px;height:4px;background:#282828">
+                <div style="height:4px;border-radius:9999px;background:#1ed760;width:{{ pct }}%"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:#ffffff">{{ pct }}%</span>
+            </div>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="padding:40px 20px;text-align:center;color:#b3b3b3">No plans found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Attendance stats -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:20px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">Total Check-ins</p>
+    <p style="font-size:32px;font-weight:700;color:#ffffff">{{ total_checkins }}</p>
+    <p style="font-size:12px;color:#b3b3b3;margin-top:4px">All time</p>
+  </div>
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:20px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">This Month</p>
+    <p style="font-size:32px;font-weight:700;color:#539df5">{{ this_month_checkins }}</p>
+    <p style="font-size:12px;color:#b3b3b3;margin-top:4px">{{ today|date:"F Y" }}</p>
+  </div>
+  <div style="background:#181818;border:1px solid #282828;border-radius:8px;padding:20px">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:8px">Busiest Day</p>
+    <p style="font-size:32px;font-weight:700;color:#ffa42b">{{ peak_day }}</p>
+    <p style="font-size:12px;color:#b3b3b3;margin-top:4px">Most check-ins historically</p>
+  </div>
+</div>
+
+<script>
+const tipDefs = () => ({ backgroundColor:'#181818', titleColor:'#ffffff', bodyColor:'#b3b3b3', borderColor:'#4d4d4d', borderWidth:1, padding:10 });
+const gridColor = () => 'rgba(255,255,255,0.06)';
+const lblColor  = () => '#6b6b6b';
+
+const revData = {{ monthly_rev_data|safe }};
+new Chart(document.getElementById('revChart'), {
+  type: 'bar',
+  data: { labels: revData.map(d => d.month), datasets: [{ label:'Revenue (Rs.)', data:revData.map(d => d.revenue),
+    backgroundColor:'rgba(30,215,96,0.5)', borderColor:'#1ed760', borderWidth:1.5, borderRadius:4, borderSkipped:false }] },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{...tipDefs(), callbacks:{label:c=>` Rs. ${c.parsed.y}`}} },
+    scales:{ x:{grid:{color:gridColor()},ticks:{color:lblColor(),font:{size:10}}}, y:{beginAtZero:true,grid:{color:gridColor()},ticks:{color:lblColor(),font:{size:10}}} }
+  }
+});
+
+new Chart(document.getElementById('methodChart'), {
+  type: 'doughnut',
+  data: { labels:['Face Recognition','Manual'], datasets:[{ data:[{{ face_count }},{{ manual_count }}],
+    backgroundColor:['rgba(30,215,96,0.8)','rgba(77,77,77,0.8)'], borderColor:'#121212', borderWidth:3, hoverOffset:6 }] },
+  options: { responsive:true, maintainAspectRatio:false, cutout:'65%',
+    plugins:{ legend:{display:false}, tooltip:{...tipDefs()} }
+  }
+});
+
+function toggleExport() { document.getElementById('export-menu').classList.toggle('hidden'); }
+document.addEventListener('click', e => {
+  if (!document.getElementById('export-wrapper').contains(e.target)) document.getElementById('export-menu').classList.add('hidden');
+});
+</script>
+{% endblock %}

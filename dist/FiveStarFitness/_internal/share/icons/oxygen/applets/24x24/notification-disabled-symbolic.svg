@@ -1,0 +1,11 @@
+<svg width="24" height="24" version="1.1" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#232629; }</style>
+ </defs>
+ <g transform="translate(1,1)">
+  <g class="ColorScheme-Text" transform="matrix(1.3492 0 0 1.3496 -4.4415 -3.7858)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width=".74106">
+   <path d="m9.8579 17.758c.26353.44422.74794.74199 1.3019.74199.82843-.007 1.4943-.68425 1.4873-1.5127v-.48733h4.227c.27614 0 .5-.22386.5-.5 0-.27615-.24456-.52121-.44503-.70192-.98054-.88388-1.8188-3.7732-2.1737-7.0493-.01802-.16636-.0454-.32818-.08174-.48468m-.73814-1.4641c-.51257-.56921-1.238-.91085-2.1202-.91085v-.73126c0-.41155-.33363-.74518-.74518-.74518-.40934.00221-.73937.33584-.73716.74518v.73126c-1.6569 0-2.7814 1.203-2.9256 2.8615-.20853 2.398-.61358 4.6051-1.2671 5.9504m-.10752 2.2989h4.9145" opacity=".4" style="paint-order:fill markers stroke"/>
+  </g>
+  <path class="ColorScheme-Text" d="m1.8982 20.091 16.888-16.888" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="paint-order:fill markers stroke"/>
+ </g>
+</svg>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="elastic">
+  <enum id="app.drey.Elastic.Language">
+    <!-- Nicks have to be 2+ letters, so "c" doesn't work -->
+    <value nick="cc" value="0"/>
+    <value nick="javascript" value="1"/>
+    <value nick="python" value="2"/>
+    <value nick="rust" value="3"/>
+    <value nick="vala" value="4"/>
+  </enum>
+  <schema id="app.drey.Elastic" path="/app/drey/Elastic/">
+    <key name="use-damping" type="b">
+      <default>false</default>
+      <summary>Use Damping</summary>
+      <description>Whether to use damping instead of damping ratio.</description>
+    </key>
+    <key name="last-language" enum="app.drey.Elastic.Language">
+      <default>'cc'</default>
+      <summary>Last Language</summary>
+      <description>Last selected language.</description>
+    </key>
+  </schema>
+</schemalist>

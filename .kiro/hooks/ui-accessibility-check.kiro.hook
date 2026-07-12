@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Accessibility Check on Template Save",
+  "description": "When a Django HTML template is saved, reminds Kiro to check for common accessibility issues like missing ARIA attributes, improper label associations, and keyboard navigation gaps.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "templates/**/*.html"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Django template was just saved. Quickly scan it for common accessibility issues: missing alt text on images, form inputs without associated labels, interactive elements that aren't keyboard-accessible (e.g., divs with onclick instead of buttons), missing ARIA attributes on custom widgets, and color contrast concerns. If you find issues, briefly list them with fixes. If the file looks clean, say so in one line."
+  }
+}

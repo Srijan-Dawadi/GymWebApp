@@ -1,0 +1,591 @@
+{% extends 'base.html' %}
+{% block title %}Inventory — 5 Star Fitness{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+
+{% block header_actions %}
+{% if user.profile.role == 'admin' %}
+<button onclick="openAddModal()"
+  style="background:#1ed760;color:#000000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 20px;display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;transition:background 0.15s"
+  onmouseover="this.style.background='#1fdf64'" onmouseout="this.style.background='#1ed760'">
+  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+  Add Item
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<style>
+  .inv-search-input {
+    background: #1f1f1f; color: #ffffff; border: none;
+    border-radius: 500px; padding: 10px 16px 10px 40px;
+    font-size: 14px; width: 100%;
+    box-shadow: rgb(18,18,18) 0px 1px 0px, rgb(124,124,124) 0px 0px 0px 1px inset;
+    transition: box-shadow 0.15s; outline: none;
+  }
+  .inv-search-input::placeholder { color: #6b6b6b; }
+  .inv-search-input:focus { box-shadow: rgb(18,18,18) 0px 1px 0px, #ffffff 0px 0px 0px 1px inset; }
+
+  .inv-table-card { background: #181818; border: 1px solid #282828; border-radius: 8px; overflow: hidden; }
+  .inv-thead { background: #1f1f1f; border-bottom: 1px solid #282828; }
+  .inv-th { padding: 12px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; color: #b3b3b3; font-weight: 700; }
+  .inv-row { border-bottom: 1px solid #282828; transition: background 0.1s; }
+  .inv-row:hover { background: #1f1f1f; }
+  .inv-row:last-child { border-bottom: none; }
+
+  .badge-good        { background: rgba(30,215,96,0.1);  color: #1ed760; border: 1px solid rgba(30,215,96,0.3);  border-radius: 9999px; padding: 2px 10px; font-size: 12px; font-weight: 700; display: inline-block; }
+  .badge-maintenance { background: rgba(255,164,43,0.1); color: #ffa42b; border: 1px solid rgba(255,164,43,0.3); border-radius: 9999px; padding: 2px 10px; font-size: 12px; font-weight: 700; display: inline-block; }
+  .badge-out         { background: rgba(243,114,127,0.1);color: #f3727f; border: 1px solid rgba(243,114,127,0.3);border-radius: 9999px; padding: 2px 10px; font-size: 12px; font-weight: 700; display: inline-block; }
+
+  .cat-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+    border: 1px solid #282828; background: #1f1f1f; color: #b3b3b3;
+    transition: all 0.15s;
+  }
+  .cat-pill:hover { border-color: #4d4d4d; color: #ffffff; }
+  .cat-pill.active { background: rgba(30,215,96,0.1); border-color: rgba(30,215,96,0.4); color: #1ed760; }
+
+  .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; border:none; background:transparent; cursor:pointer; transition:background 0.1s; }
+  .icon-btn svg { stroke: #b3b3b3; transition: stroke 0.1s; }
+  .icon-btn:hover { background: #282828; }
+  .icon-btn:hover svg { stroke: #ffffff; }
+
+  /* Modal */
+  .inv-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:150; align-items:center; justify-content:center; padding:16px; display:none; }
+  .inv-modal-overlay.active { display:flex; }
+  .inv-modal-card {
+    background: #181818; border: 1px solid #4d4d4d; border-radius: 12px;
+    width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+    box-shadow: rgba(0,0,0,0.6) 0px 16px 48px;
+    transform: scale(0.95); opacity: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .inv-modal-card.open { transform: scale(1); opacity: 1; }
+  .inv-modal-header { padding: 20px 24px 16px; border-bottom: 1px solid #282828; display: flex; align-items: center; justify-content: space-between; }
+  .inv-modal-body { padding: 20px 24px; }
+  .inv-modal-footer { padding: 16px 24px; border-top: 1px solid #282828; display: flex; gap: 10px; justify-content: flex-end; }
+
+  .form-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #b3b3b3; margin-bottom: 6px; }
+  .form-group { margin-bottom: 16px; }
+
+  .stat-card { background: #181818; border: 1px solid #282828; border-radius: 8px; padding: 20px 24px; }
+
+  .weight-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 52px; padding: 4px 10px; border-radius: 6px;
+    background: #1f1f1f; border: 1px solid #282828;
+    font-size: 12px; font-weight: 700; color: #b3b3b3;
+  }
+
+  /* Staff status themed dropdown */
+  .staff-status-trigger {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700;
+    cursor: pointer; user-select: none; border: 1px solid;
+    transition: opacity 0.15s;
+  }
+  .staff-status-trigger:hover { opacity: 0.8; }
+  .staff-status-trigger.status-good        { background: rgba(30,215,96,0.1);  color: #1ed760; border-color: rgba(30,215,96,0.3); }
+  .staff-status-trigger.status-maintenance { background: rgba(255,164,43,0.1); color: #ffa42b; border-color: rgba(255,164,43,0.3); }
+  .staff-status-trigger.status-out_of_service { background: rgba(243,114,127,0.1); color: #f3727f; border-color: rgba(243,114,127,0.3); }
+  .staff-status-trigger.open svg { transform: rotate(180deg); }
+
+  .staff-status-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0;
+    background: #282828; border: 1px solid #4d4d4d; border-radius: 8px;
+    overflow: hidden; z-index: 50; min-width: 140px;
+    box-shadow: rgba(0,0,0,0.5) 0px 8px 24px;
+    animation: dropIn 0.15s ease;
+  }
+  .staff-status-dropdown.open { display: block; }
+  .staff-status-option {
+    padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    color: #b3b3b3; transition: background 0.1s, color 0.1s;
+  }
+  .staff-status-option:hover { background: #1f1f1f; color: #ffffff; }
+</style>
+
+<!-- Stats row -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+  <div class="stat-card">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:6px">Equipment Types</p>
+    <p style="font-size:32px;font-weight:700;color:#ffffff">{{ total_items }}</p>
+  </div>
+  <div class="stat-card">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:6px">Total Units</p>
+    <p style="font-size:32px;font-weight:700;color:#ffffff">{{ total_qty }}</p>
+  </div>
+  <div class="stat-card">
+    <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#b3b3b3;margin-bottom:6px">Needs Attention</p>
+    <p style="font-size:32px;font-weight:700;color:{% if needs_attention > 0 %}#ffa42b{% else %}#1ed760{% endif %}">{{ needs_attention }}</p>
+  </div>
+</div>
+
+<!-- Category pills -->
+<div class="flex flex-wrap gap-2 mb-4">
+  <button class="cat-pill {% if not category_filter %}active{% endif %}" onclick="filterCategory('')">
+    All
+  </button>
+  {% for val, label in categories %}
+  <button class="cat-pill {% if category_filter == val %}active{% endif %}" onclick="filterCategory('{{ val }}')">
+    {% if val == 'dumbbells' %}🏋️{% elif val == 'barbells' %}🔩{% elif val == 'weight_plates' %}⚖️{% elif val == 'cardio' %}🚴{% elif val == 'strength' %}💪{% else %}🎽{% endif %}
+    {{ label }}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Search + status filter -->
+<div class="flex flex-wrap gap-3 mb-4">
+  <div class="relative flex-1 min-w-48">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#b3b3b3;stroke-width:2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+    </svg>
+    <input id="inv-search" type="text" value="{{ q }}" placeholder="Search equipment…" autocomplete="off" class="inv-search-input" />
+  </div>
+  <select id="inv-status-filter" class="glow-input" style="width:auto;border-radius:500px !important;padding:10px 16px !important">
+    <option value="">All Statuses</option>
+    {% for val, label in status_choices %}
+    <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button id="inv-clear-btn" class="hidden"
+    style="background:#1f1f1f;border:1px solid #4d4d4d;color:#b3b3b3;border-radius:9999px;font-size:12px;font-weight:700;padding:8px 16px;cursor:pointer;text-transform:uppercase;letter-spacing:1.4px">
+    Clear
+  </button>
+</div>
+
+<p id="inv-result-count" class="text-xs mb-3 hidden" style="color:#b3b3b3"></p>
+
+<!-- Table -->
+<div class="inv-table-card">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm min-w-[700px]">
+      <thead>
+        <tr class="inv-thead">
+          <th class="inv-th">Equipment</th>
+          <th class="inv-th">Category</th>
+          <th class="inv-th">Weight</th>
+          <th class="inv-th">Qty</th>
+          <th class="inv-th">Status</th>
+          <th class="inv-th">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="inv-tbody">
+        {% for item in items %}
+        <tr class="inv-row"
+          data-id="{{ item.pk }}"
+          data-name="{{ item.name|lower|escapejs }}"
+          data-desc="{{ item.description|lower|escapejs }}"
+          data-category="{{ item.category }}"
+          data-status="{{ item.status }}">
+          <td style="padding:12px 16px">
+            <p style="font-size:14px;font-weight:700;color:#ffffff">{{ item.name }}</p>
+            {% if item.description %}<p style="font-size:12px;color:#6b6b6b;margin-top:2px">{{ item.description }}</p>{% endif %}
+          </td>
+          <td style="padding:12px 16px;font-size:13px;color:#b3b3b3">{{ item.category_label }}</td>
+          <td style="padding:12px 16px">
+            {% if item.weight_kg %}
+            <span class="weight-chip">{{ item.weight_kg|floatformat:"-2" }} kg</span>
+            {% else %}
+            <span style="color:#4d4d4d;font-size:13px">—</span>
+            {% endif %}
+          </td>
+          <td style="padding:12px 16px;font-size:14px;font-weight:700;color:#ffffff">{{ item.quantity }}</td>
+          <td style="padding:12px 16px">
+            {% if item.status == 'good' %}<span class="badge-good">Good</span>
+            {% elif item.status == 'maintenance' %}<span class="badge-maintenance">Maintenance</span>
+            {% else %}<span class="badge-out">Out of Service</span>{% endif %}
+          </td>
+          <td style="padding:12px 16px">
+            {% if user.profile.role == 'admin' %}
+            <div class="flex items-center gap-1">
+              <button class="icon-btn" title="Edit"
+                onclick="openEditModal({{ item.pk }}, '{{ item.name|escapejs }}', '{{ item.category }}', '{{ item.description|escapejs }}', {{ item.quantity }}, '{{ item.status }}', '{% if item.weight_kg %}{{ item.weight_kg }}{% endif %}', '{{ item.notes|escapejs }}')">
+                <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <button class="icon-btn" title="Delete"
+                onmouseover="this.querySelector('svg').style.stroke='#f3727f'" onmouseout="this.querySelector('svg').style.stroke='#b3b3b3'"
+                onclick="confirmDelete({{ item.pk }}, '{{ item.name|escapejs }}')">
+                <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+            {% else %}
+            {# Staff: themed status dropdown that auto-submits #}
+            <form method="post" action="/inventory/{{ item.pk }}/status/" class="staff-status-form" style="display:inline-block;position:relative">
+              {% csrf_token %}
+              <input type="hidden" name="status" class="staff-status-value" value="{{ item.status }}" />
+              <div class="staff-status-trigger status-{{ item.status }}" tabindex="0"
+                onclick="toggleStaffDropdown(this)"
+                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleStaffDropdown(this)}">
+                <span class="staff-status-label">
+                  {% if item.status == 'good' %}Good
+                  {% elif item.status == 'maintenance' %}Maintenance
+                  {% else %}Out of Service{% endif %}
+                </span>
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;transition:transform 0.2s"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+              <div class="staff-status-dropdown">
+                <div class="staff-status-option" data-value="good" onclick="selectStaffStatus(this)">Good</div>
+                <div class="staff-status-option" data-value="maintenance" onclick="selectStaffStatus(this)">Maintenance</div>
+                <div class="staff-status-option" data-value="out_of_service" onclick="selectStaffStatus(this)">Out of Service</div>
+              </div>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="inv-empty">
+          <td colspan="6" style="padding:60px 16px;text-align:center">
+            <div style="width:56px;height:56px;border-radius:50%;background:#1f1f1f;border:1px solid #282828;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px">📦</div>
+            <p style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:4px">No equipment found</p>
+            <p style="font-size:13px;color:#b3b3b3">Try adjusting your search or filters</p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Add Modal ── -->
+<div id="add-modal" class="inv-modal-overlay">
+  <div id="add-modal-card" class="inv-modal-card">
+    <div class="inv-modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#ffffff">Add Equipment</h2>
+      <button onclick="closeAddModal()" style="background:none;border:none;cursor:pointer;color:#b3b3b3;padding:4px" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#b3b3b3'">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/inventory/add/">
+      {% csrf_token %}
+      <div class="inv-modal-body">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <input type="text" name="name" required placeholder="e.g. Hex Rubber Dumbbell 20 kg" class="glow-input" style="border-radius:8px !important" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select name="category" required class="glow-input">
+              <option value="">Select…</option>
+              {% for val, label in categories %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weight (kg)</label>
+            <input type="number" name="weight_kg" step="0.25" min="0" placeholder="e.g. 20" class="glow-input" style="border-radius:8px !important" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-group">
+            <label class="form-label">Quantity *</label>
+            <input type="number" name="quantity" min="1" value="1" required class="glow-input" style="border-radius:8px !important" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="glow-input">
+              {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if val == 'good' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea name="description" rows="2" placeholder="Optional description…" class="glow-input" style="border-radius:8px !important;resize:vertical"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" rows="2" placeholder="Internal notes…" class="glow-input" style="border-radius:8px !important;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div class="inv-modal-footer">
+        <button type="button" onclick="closeAddModal()" class="cancel-btn">Cancel</button>
+        <button type="submit" class="sp-btn-primary">Add Item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Edit Modal ── -->
+<div id="edit-modal" class="inv-modal-overlay">
+  <div id="edit-modal-card" class="inv-modal-card">
+    <div class="inv-modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#ffffff">Edit Equipment</h2>
+      <button onclick="closeEditModal()" style="background:none;border:none;cursor:pointer;color:#b3b3b3;padding:4px" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#b3b3b3'">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="edit-form" method="post" action="">
+      {% csrf_token %}
+      <div class="inv-modal-body">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <input type="text" id="edit-name" name="name" required class="glow-input" style="border-radius:8px !important" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select id="edit-category" name="category" required class="glow-input">
+              {% for val, label in categories %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weight (kg)</label>
+            <input type="number" id="edit-weight" name="weight_kg" step="0.25" min="0" class="glow-input" style="border-radius:8px !important" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-group">
+            <label class="form-label">Quantity *</label>
+            <input type="number" id="edit-quantity" name="quantity" min="1" required class="glow-input" style="border-radius:8px !important" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="edit-status" name="status" class="glow-input">
+              {% for val, label in status_choices %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea id="edit-description" name="description" rows="2" class="glow-input" style="border-radius:8px !important;resize:vertical"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Notes</label>
+          <textarea id="edit-notes" name="notes" rows="2" class="glow-input" style="border-radius:8px !important;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div class="inv-modal-footer">
+        <button type="button" onclick="closeEditModal()" class="cancel-btn">Cancel</button>
+        <button type="submit" class="sp-btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Hidden delete forms -->
+<div id="delete-forms" style="display:none"></div>
+
+<script>
+// ── Client-side filtering — no page reloads ──────────────────────────────────
+const allRows     = Array.from(document.querySelectorAll('#inv-tbody .inv-row'));
+const emptyState  = document.getElementById('inv-empty');
+const resultCount = document.getElementById('inv-result-count');
+const clearBtn    = document.getElementById('inv-clear-btn');
+const searchInput = document.getElementById('inv-search');
+
+let activeCategory = '';
+let activeStatus   = '';
+
+function applyFilters() {
+  const q = searchInput.value.trim().toLowerCase();
+
+  let visible = 0;
+  allRows.forEach(row => {
+    const matchQ        = !q || row.dataset.name.includes(q) || row.dataset.desc.includes(q);
+    const matchCategory = !activeCategory || row.dataset.category === activeCategory;
+    const matchStatus   = !activeStatus   || row.dataset.status   === activeStatus;
+    const show = matchQ && matchCategory && matchStatus;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  // Empty state
+  if (emptyState) emptyState.style.display = visible === 0 ? '' : 'none';
+
+  // Result count
+  const hasFilter = q || activeCategory || activeStatus;
+  if (hasFilter) {
+    resultCount.textContent = visible + ' item' + (visible !== 1 ? 's' : '') + ' found';
+    resultCount.classList.remove('hidden');
+  } else {
+    resultCount.classList.add('hidden');
+  }
+
+  // Clear button
+  clearBtn.classList.toggle('hidden', !hasFilter);
+}
+
+// Search input — instant, no debounce needed (pure DOM ops)
+searchInput.addEventListener('input', applyFilters);
+
+// Status filter (custom select fires a native 'change' on the hidden <select>)
+const statusSelectEl = document.getElementById('inv-status-filter');
+statusSelectEl.addEventListener('change', () => {
+  activeStatus = statusSelectEl.value;
+  applyFilters();
+});
+
+// Category pills
+function filterCategory(val) {
+  activeCategory = val;
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+  const pills = document.querySelectorAll('.cat-pill');
+  pills.forEach(p => {
+    // match by onclick argument
+    if (val === '' && p.getAttribute('onclick') === "filterCategory('')") p.classList.add('active');
+    else if (val && p.getAttribute('onclick') === `filterCategory('${val}')`) p.classList.add('active');
+  });
+  applyFilters();
+}
+
+// Clear button
+clearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  activeCategory = '';
+  activeStatus   = '';
+  // Reset the custom status select
+  statusSelectEl.value = '';
+  statusSelectEl.dispatchEvent(new Event('change', { bubbles: true }));
+  // Reset category pills
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector('.cat-pill').classList.add('active'); // "All" pill
+  applyFilters();
+  searchInput.focus();
+});
+
+// ── Add Modal ────────────────────────────────────────────────────────────────
+function openAddModal() {
+  const overlay = document.getElementById('add-modal');
+  overlay.classList.add('active');
+  requestAnimationFrame(() => document.getElementById('add-modal-card').classList.add('open'));
+}
+function closeAddModal() {
+  const card = document.getElementById('add-modal-card');
+  card.classList.remove('open');
+  setTimeout(() => document.getElementById('add-modal').classList.remove('active'), 200);
+}
+document.getElementById('add-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAddModal();
+});
+
+// ── Edit Modal ───────────────────────────────────────────────────────────────
+function openEditModal(pk, name, category, description, quantity, status, weight, notes) {
+  document.getElementById('edit-form').action = '/inventory/' + pk + '/edit/';
+  document.getElementById('edit-name').value        = name;
+  document.getElementById('edit-quantity').value    = quantity;
+  document.getElementById('edit-weight').value      = weight || '';
+  document.getElementById('edit-description').value = description;
+  document.getElementById('edit-notes').value       = notes;
+
+  const catSel = document.getElementById('edit-category');
+  catSel.value = category;
+  const statusSel = document.getElementById('edit-status');
+  statusSel.value = status;
+
+  // Sync custom select triggers
+  [catSel, statusSel].forEach(sel => {
+    const trigger = sel.parentNode && sel.parentNode.querySelector('.custom-select-trigger');
+    if (trigger) {
+      const span = trigger.querySelector('.trigger-text');
+      const opt  = sel.options[sel.selectedIndex];
+      if (span && opt) {
+        span.textContent = opt.text;
+        span.style.color = opt.value ? 'var(--text)' : 'var(--text-muted)';
+      }
+      sel.parentNode.querySelectorAll('.custom-select-option').forEach(item => {
+        item.classList.toggle('selected', item.dataset.value === sel.value);
+      });
+    }
+  });
+
+  const overlay = document.getElementById('edit-modal');
+  overlay.classList.add('active');
+  requestAnimationFrame(() => document.getElementById('edit-modal-card').classList.add('open'));
+}
+function closeEditModal() {
+  const card = document.getElementById('edit-modal-card');
+  card.classList.remove('open');
+  setTimeout(() => document.getElementById('edit-modal').classList.remove('active'), 200);
+}
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+function confirmDelete(pk, name) {
+  showModal({
+    title: 'Remove "' + name + '"?',
+    body: 'This will permanently remove this item from inventory.',
+    icon: '🗑️',
+    iconBg: 'background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3)',
+    confirmText: 'Remove',
+    confirmStyle: 'background:#f3727f;color:#000;border-radius:9999px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer',
+    onConfirm: () => {
+      const container = document.getElementById('delete-forms');
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = '/inventory/' + pk + '/delete/';
+      const csrf = document.createElement('input');
+      csrf.type = 'hidden'; csrf.name = 'csrfmiddlewaretoken';
+      csrf.value = getCookie('csrftoken');
+      form.appendChild(csrf);
+      container.appendChild(form);
+      form.submit();
+    }
+  });
+}
+
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+// ── Staff status dropdown ────────────────────────────────────────────────────
+function toggleStaffDropdown(trigger) {
+  const dropdown = trigger.nextElementSibling;
+  const isOpen = dropdown.classList.contains('open');
+  // close all others first
+  closeAllStaffDropdowns();
+  if (!isOpen) {
+    dropdown.classList.add('open');
+    trigger.classList.add('open');
+  }
+}
+
+function closeAllStaffDropdowns() {
+  document.querySelectorAll('.staff-status-dropdown.open').forEach(d => {
+    d.classList.remove('open');
+    d.previousElementSibling.classList.remove('open');
+  });
+}
+
+function selectStaffStatus(option) {
+  const dropdown = option.closest('.staff-status-dropdown');
+  const trigger  = dropdown.previousElementSibling;
+  const form     = option.closest('.staff-status-form');
+  const val      = option.dataset.value;
+
+  // Update hidden input
+  form.querySelector('.staff-status-value').value = val;
+
+  // Update trigger appearance
+  trigger.className = 'staff-status-trigger status-' + val;
+  trigger.querySelector('.staff-status-label').textContent = option.textContent.trim();
+
+  // Close dropdown
+  dropdown.classList.remove('open');
+  trigger.classList.remove('open');
+
+  // Submit
+  form.submit();
+}
+
+// Close staff dropdowns when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.staff-status-form')) closeAllStaffDropdowns();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeAddModal(); closeEditModal(); closeAllStaffDropdowns(); }
+});
+</script>
+{% endblock %}

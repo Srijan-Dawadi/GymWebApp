@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Users — 5 Star Fitness{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block header_actions %}
+<a href="/accounts/users/add/"
+  style="background:#1ed760;color:#000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 20px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:background 0.15s"
+  onmouseover="this.style.background='#1fdf64'" onmouseout="this.style.background='#1ed760'">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  Add User
+</a>
+{% endblock %}
+
+{% block content %}
+<div style="background:#181818;border:1px solid #282828;border-radius:8px;overflow:hidden">
+  <table class="w-full text-sm dark-table">
+    <thead>
+      <tr>
+        <th class="px-5 py-3">User</th>
+        <th class="px-5 py-3">Email</th>
+        <th class="px-5 py-3">Role</th>
+        <th class="px-5 py-3">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-3">
+            <div style="width:32px;height:32px;border-radius:50%;background:#1ed760;display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;font-size:12px;flex-shrink:0">
+              {{ u.username|first|upper }}
+            </div>
+            <div>
+              <p style="font-size:14px;font-weight:700;color:#ffffff">{{ u.username }}
+                {% if u == request.user %}<span style="font-size:12px;color:#1ed760;margin-left:4px">(you)</span>{% endif %}
+              </p>
+            </div>
+          </div>
+        </td>
+        <td class="px-5 py-3">{{ u.email|default:"—" }}</td>
+        <td class="px-5 py-3">
+          <span style="font-size:11px;font-weight:700;border-radius:9999px;padding:2px 10px;{% if u.profile.role == 'admin' %}background:rgba(30,215,96,0.1);color:#1ed760{% else %}background:#282828;color:#b3b3b3{% endif %}">
+            {{ u.profile.role|capfirst }}
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-2">
+            <a href="/accounts/users/{{ u.pk }}/edit/"
+              style="background:rgba(255,164,43,0.1);border:1px solid rgba(255,164,43,0.2);color:#ffa42b;border-radius:9999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:4px 14px;text-decoration:none;transition:background 0.15s"
+              onmouseover="this.style.background='rgba(255,164,43,0.2)'" onmouseout="this.style.background='rgba(255,164,43,0.1)'">Edit</a>
+            {% if u != request.user %}
+            <form method="post" action="/accounts/users/{{ u.pk }}/delete/" id="del-user-{{ u.pk }}">{% csrf_token %}</form>
+            <button type="button" data-form="del-user-{{ u.pk }}" data-name="{{ u.username }}" class="modal-delete-user"
+              style="background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.2);color:#f3727f;border-radius:9999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:4px 14px;cursor:pointer;transition:background 0.15s"
+              onmouseover="this.style.background='rgba(243,114,127,0.2)'" onmouseout="this.style.background='rgba(243,114,127,0.1)'">Delete</button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" style="padding:48px 20px;text-align:center;color:#b3b3b3">No users found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.modal-delete-user').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const name = this.getAttribute('data-name');
+      const formId = this.getAttribute('data-form');
+      showModal({
+        title: 'Delete ' + name + '?',
+        body: 'This user account will be permanently removed. This cannot be undone.',
+        icon: '🗑️',
+        iconBg: 'background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3)',
+        confirmText: 'Yes, Delete',
+        confirmStyle: 'background:#f3727f;color:#000;border-radius:9999px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer',
+        onConfirm: function() { document.getElementById(formId).submit(); }
+      });
+    });
+  });
+});
+</script>
+{% endblock %}

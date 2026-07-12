@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% block title %}Members — 5 Star Fitness{% endblock %}
+{% block page_title %}Members{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-2">
+  <button onclick="exportAllMembers()"
+    style="background:#1f1f1f;border:1px solid #4d4d4d;color:#ffffff;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 16px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;transition:background 0.15s"
+    onmouseover="this.style.background='#282828'" onmouseout="this.style.background='#1f1f1f'">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+    Export
+  </button>
+  <a href="/members/add/"
+    style="background:#1ed760;color:#000000;border-radius:9999px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;padding:8px 20px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:background 0.15s"
+    onmouseover="this.style.background='#1fdf64'" onmouseout="this.style.background='#1ed760'">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+    Add Member
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  .ml-search-input {
+    background: #1f1f1f; color: #ffffff; border: none;
+    border-radius: 500px; padding: 10px 16px 10px 40px;
+    font-size: 14px; width: 100%;
+    box-shadow: rgb(18,18,18) 0px 1px 0px, rgb(124,124,124) 0px 0px 0px 1px inset;
+    transition: box-shadow 0.15s; outline: none;
+  }
+  .ml-search-input::placeholder { color: #6b6b6b; }
+  .ml-search-input:focus { box-shadow: rgb(18,18,18) 0px 1px 0px, #ffffff 0px 0px 0px 1px inset; }
+
+  .ml-table-card { background: #181818; border: 1px solid #282828; border-radius: 8px; overflow: hidden; }
+  .ml-thead { background: #1f1f1f; border-bottom: 1px solid #282828; }
+  .ml-th { padding: 12px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; color: #b3b3b3; font-weight: 700; }
+  .member-row { border-bottom: 1px solid #282828; transition: background 0.1s; }
+  .member-row:hover { background: #1f1f1f; }
+  .member-row:last-child { border-bottom: none; }
+
+  .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; border:none; background:transparent; cursor:pointer; transition:background 0.1s; }
+  .icon-btn svg { stroke: #b3b3b3; transition: stroke 0.1s; }
+  .icon-btn:hover { background: #282828; }
+  .icon-btn:hover svg { stroke: #ffffff; }
+
+  .page-btn { text-decoration:none; color:#b3b3b3; padding:4px 10px; border-radius:9999px; font-size:12px; font-weight:700; transition:background 0.1s,color 0.1s; }
+  .page-btn:hover { background:#282828; color:#ffffff; }
+  .page-btn-disabled { color:#4d4d4d; padding:4px 10px; font-size:12px; }
+
+  .bulk-bar { background:rgba(30,215,96,0.08); border:1px solid rgba(30,215,96,0.2); border-radius:8px; padding:10px 16px; margin-bottom:12px; }
+</style>
+
+<!-- Bulk bar -->
+<div id="bulk-bar" class="bulk-bar hidden mb-4">
+  <div class="flex items-center justify-between">
+    <span id="bulk-count" style="font-size:13px;font-weight:700;color:#1ed760">0 members selected</span>
+    <div class="flex items-center gap-4">
+      <button onclick="bulkSendReminder()" style="color:#1ed760;background:none;border:none;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1.4px">Remind</button>
+      <button onclick="bulkExportSelected()" style="color:#b3b3b3;background:none;border:none;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1.4px">Export</button>
+      <button onclick="bulkMarkExpired()" style="color:#f3727f;background:none;border:none;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1.4px">Mark Expired</button>
+    </div>
+  </div>
+</div>
+
+<!-- Search / filter -->
+<div class="flex flex-wrap gap-3 mb-4">
+  <div class="relative flex-1 min-w-48">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#b3b3b3;stroke-width:2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+    </svg>
+    <input id="search-input" type="text" value="{{ q }}" placeholder="Search members…" autocomplete="off" class="ml-search-input" />
+    <svg id="search-spinner" class="hidden absolute right-3 top-1/2 -translate-y-1/2 animate-spin" fill="none" viewBox="0 0 24 24" style="width:16px;height:16px">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="#1ed760" stroke-width="4"/>
+      <path class="opacity-75" fill="#1ed760" d="M4 12a8 8 0 018-8v8z"/>
+    </svg>
+  </div>
+  <select id="status-filter" class="glow-input" style="width:auto;border-radius:500px !important;padding:10px 16px !important">
+    <option value="">All Statuses</option>
+    <option value="active"    {% if status_filter == 'active'    %}selected{% endif %}>Active</option>
+    <option value="expired"   {% if status_filter == 'expired'   %}selected{% endif %}>Expired</option>
+    <option value="suspended" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended</option>
+  </select>
+  <button id="clear-btn" class="{% if not q and not status_filter %}hidden{% endif %}"
+    style="background:#1f1f1f;border:1px solid #4d4d4d;color:#b3b3b3;border-radius:9999px;font-size:12px;font-weight:700;padding:8px 16px;cursor:pointer;text-transform:uppercase;letter-spacing:1.4px">
+    Clear
+  </button>
+</div>
+
+<p id="result-count" class="text-xs mb-3 hidden" style="color:#b3b3b3"></p>
+
+<!-- Table -->
+<div class="ml-table-card">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm min-w-[800px]">
+      <thead>
+        <tr class="ml-thead">
+          <th class="ml-th" style="width:40px"><input type="checkbox" id="select-all" style="width:16px;height:16px;cursor:pointer;accent-color:#1ed760" /></th>
+          <th class="ml-th">Member</th>
+          <th class="ml-th">Plan</th>
+          <th class="ml-th">Expiry</th>
+          <th class="ml-th">Days Left</th>
+          <th class="ml-th">Status</th>
+          <th class="ml-th">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="members-tbody">
+        {% for member in page_obj %}
+        <tr class="member-row" data-member-id="{{ member.pk }}">
+          <td style="padding:12px 16px"><input type="checkbox" class="row-checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:#1ed760" /></td>
+          <td style="padding:12px 16px">
+            <div class="flex items-center gap-3">
+              {% if member.photo %}
+              <img src="{{ member.photo.url }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" alt="" />
+              {% else %}
+              <div class="avatar-circle" data-name="{{ member.full_name }}" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;font-size:14px;background:#1ed760">{{ member.full_name|first }}</div>
+              {% endif %}
+              <div>
+                <p style="font-size:14px;font-weight:700;color:#ffffff">{{ member.full_name }}</p>
+                <p style="font-size:12px;color:#b3b3b3">{{ member.email }}</p>
+              </div>
+            </div>
+          </td>
+          <td style="padding:12px 16px;font-size:13px;color:#b3b3b3">{{ member.membership_plan.name }}</td>
+          <td style="padding:12px 16px;font-size:13px;color:#b3b3b3">{{ member.expiry_date }}</td>
+          <td style="padding:12px 16px;font-size:13px" class="days-left-cell" data-expiry="{{ member.expiry_date }}" data-status="{{ member.status }}"></td>
+          <td style="padding:12px 16px">
+            {% if member.status == 'active' %}<span class="badge-active">Active</span>
+            {% elif member.status == 'expired' %}<span class="badge-expired">Expired</span>
+            {% else %}<span class="badge-suspended">Suspended</span>{% endif %}
+          </td>
+          <td style="padding:12px 16px">
+            <div class="flex items-center gap-1">
+              <a href="/members/{{ member.pk }}/" title="View" class="icon-btn">
+                <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </a>
+              <a href="/members/{{ member.pk }}/edit/" title="Edit" class="icon-btn">
+                <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </a>
+              {% if user.profile.role == 'admin' %}
+              <a href="/members/{{ member.pk }}/delete/" title="Delete" class="icon-btn" style="" onmouseover="this.querySelector('svg').style.stroke='#f3727f'" onmouseout="this.querySelector('svg').style.stroke='#b3b3b3'">
+                <svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="empty-state"><td colspan="7" style="padding:60px 16px;text-align:center">
+          <p style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:4px">No members found</p>
+          <p style="font-size:13px;color:#b3b3b3">Try adjusting your search or filters</p>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #282828">
+    <span style="font-size:12px;color:#b3b3b3">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <div style="display:flex;align-items:center;gap:4px">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}" class="page-btn">← Prev</a>
+      {% else %}<span class="page-btn-disabled">← Prev</span>{% endif %}
+      {% with cur=page_obj.number total=page_obj.paginator.num_pages %}
+        {% for p in page_obj.paginator.page_range %}
+          {% if p == cur %}
+            <span style="padding:4px 10px;font-size:12px;background:#1ed760;color:#000;border-radius:9999px;font-weight:700">{{ p }}</span>
+          {% elif p == 1 or p == total or p >= cur|add:"-2" and p <= cur|add:"2" %}
+            <a href="?page={{ p }}&q={{ q }}&status={{ status_filter }}" class="page-btn">{{ p }}</a>
+          {% elif p == cur|add:"-3" or p == cur|add:"3" %}
+            <span style="color:#b3b3b3;padding:0 4px">…</span>
+          {% endif %}
+        {% endfor %}
+      {% endwith %}
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}" class="page-btn">Next →</a>
+      {% else %}<span class="page-btn-disabled">Next →</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+const AVATAR_COLORS = ['#6366f1','#0891b2','#d97706','#7c3aed','#0d9488','#dc2626','#9333ea','#c2410c'];
+function avatarColor(name) {
+  const code = (name || 'A').toUpperCase().charCodeAt(0) - 65;
+  return AVATAR_COLORS[Math.abs(code) % AVATAR_COLORS.length];
+}
+document.querySelectorAll('.avatar-circle').forEach(el => {
+  el.style.background = avatarColor(el.dataset.name || '');
+});
+
+function fillDaysLeft() {
+  document.querySelectorAll('.days-left-cell').forEach(cell => {
+    const status = cell.dataset.status;
+    if (status === 'suspended') { cell.textContent = '—'; cell.style.color = '#b3b3b3'; return; }
+    const expiry = new Date(cell.dataset.expiry);
+    const today  = new Date(); today.setHours(0,0,0,0);
+    const days   = Math.round((expiry - today) / 86400000);
+    if (days > 14)      { cell.textContent = days + ' days'; cell.style.color = '#1ed760'; }
+    else if (days >= 1) { cell.textContent = days + ' days'; cell.style.color = '#ffa42b'; }
+    else                { cell.textContent = 'Expired';      cell.style.color = '#f3727f'; }
+  });
+}
+fillDaysLeft();
+
+const selectAll = document.getElementById('select-all');
+const bulkBar   = document.getElementById('bulk-bar');
+const bulkCount = document.getElementById('bulk-count');
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.row-checkbox:checked').length;
+  if (checked > 0) {
+    bulkBar.classList.remove('hidden');
+    bulkCount.textContent = checked + ' member' + (checked !== 1 ? 's' : '') + ' selected';
+  } else {
+    bulkBar.classList.add('hidden');
+  }
+  if (selectAll) {
+    const total = document.querySelectorAll('.row-checkbox').length;
+    selectAll.checked = checked === total && total > 0;
+    selectAll.indeterminate = checked > 0 && checked < total;
+  }
+}
+document.querySelectorAll('.row-checkbox').forEach(cb => cb.addEventListener('change', updateBulkBar));
+if (selectAll) {
+  selectAll.addEventListener('change', () => {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = selectAll.checked);
+    updateBulkBar();
+  });
+}
+
+const searchInput  = document.getElementById('search-input');
+const statusFilter = document.getElementById('status-filter');
+const tbody        = document.getElementById('members-tbody');
+const spinner      = document.getElementById('search-spinner');
+const resultCount  = document.getElementById('result-count');
+const clearBtn     = document.getElementById('clear-btn');
+let debounceTimer  = null;
+
+function renderRows(members) {
+  if (!members.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:60px 16px;text-align:center"><p style="font-size:15px;font-weight:700;color:#ffffff;margin-bottom:4px">No members found</p><p style="font-size:13px;color:#b3b3b3">Try adjusting your search or filters</p></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = members.map(m => {
+    const avatar = m.photo_url
+      ? `<img src="${m.photo_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" alt="" />`
+      : `<div style="width:36px;height:36px;border-radius:50%;background:${avatarColor(m.full_name)};display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;font-size:14px">${m.full_name.charAt(0).toUpperCase()}</div>`;
+    const expiry = new Date(m.expiry_date); const today = new Date(); today.setHours(0,0,0,0);
+    const days = Math.round((expiry - today) / 86400000);
+    const daysHtml = m.status === 'suspended' ? `<span style="color:#b3b3b3">—</span>`
+      : days > 14 ? `<span style="color:#1ed760">${days} days</span>`
+      : days >= 1 ? `<span style="color:#ffa42b">${days} days</span>`
+      : `<span style="color:#f3727f">Expired</span>`;
+    const badge = m.status === 'active' ? `<span class="badge-active">Active</span>`
+      : m.status === 'expired' ? `<span class="badge-expired">Expired</span>`
+      : `<span class="badge-suspended">Suspended</span>`;
+    return `<tr class="member-row" data-member-id="${m.id}" style="border-bottom:1px solid #282828">
+      <td style="padding:12px 16px"><input type="checkbox" class="row-checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:#1ed760" /></td>
+      <td style="padding:12px 16px"><div style="display:flex;align-items:center;gap:12px">${avatar}<div><p style="font-size:14px;font-weight:700;color:#ffffff">${m.full_name}</p><p style="font-size:12px;color:#b3b3b3">${m.email}</p></div></div></td>
+      <td style="padding:12px 16px;font-size:13px;color:#b3b3b3">${m.plan}</td>
+      <td style="padding:12px 16px;font-size:13px;color:#b3b3b3">${m.expiry_date}</td>
+      <td style="padding:12px 16px;font-size:13px">${daysHtml}</td>
+      <td style="padding:12px 16px">${badge}</td>
+      <td style="padding:12px 16px"><div style="display:flex;align-items:center;gap:4px">
+        <a href="/members/${m.id}/" class="icon-btn"><svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2;stroke:#b3b3b3"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></a>
+        <a href="/members/${m.id}/edit/" class="icon-btn"><svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2;stroke:#b3b3b3"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></a>
+        ${m.is_admin ? `<a href="/members/${m.id}/delete/" class="icon-btn"><svg fill="none" viewBox="0 0 24 24" style="width:16px;height:16px;stroke-width:2;stroke:#b3b3b3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></a>` : ''}
+      </div></td>
+    </tr>`;
+  }).join('');
+  document.querySelectorAll('.row-checkbox').forEach(cb => cb.addEventListener('change', updateBulkBar));
+}
+
+function doSearch() {
+  const q = searchInput.value.trim();
+  const status = statusFilter.value;
+  clearBtn.classList.toggle('hidden', !q && !status);
+  spinner.classList.remove('hidden');
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (status) params.set('status', status);
+  fetch(`/members/search/?${params}`)
+    .then(r => r.json())
+    .then(data => {
+      renderRows(data.results);
+      if (q || status) { resultCount.textContent = `${data.count} member${data.count !== 1 ? 's' : ''} found`; resultCount.classList.remove('hidden'); }
+      else resultCount.classList.add('hidden');
+    })
+    .catch(() => { tbody.innerHTML = `<tr><td colspan="7" style="padding:40px 16px;text-align:center;color:#f3727f;font-size:13px">Search failed. Please try again.</td></tr>`; })
+    .finally(() => spinner.classList.add('hidden'));
+}
+
+searchInput.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(doSearch, 250); });
+statusFilter.addEventListener('change', () => { clearTimeout(debounceTimer); doSearch(); });
+clearBtn.addEventListener('click', () => { searchInput.value = ''; statusFilter.value = ''; resultCount.classList.add('hidden'); doSearch(); });
+
+function getCheckedIds() {
+  return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.closest('tr').dataset.memberId).filter(Boolean);
+}
+function exportAllMembers() {
+  const params = new URLSearchParams();
+  if (statusFilter.value) params.set('status', statusFilter.value);
+  if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
+  window.location.href = `/members/export/?${params}`;
+}
+function bulkExportSelected() {
+  const ids = getCheckedIds();
+  if (!ids.length) return;
+  window.location.href = `/members/export/?ids=${ids.join(',')}`;
+}
+function bulkMarkExpired() {
+  const ids = getCheckedIds();
+  if (!ids.length) return;
+  showModal({ title: `Mark ${ids.length} member(s) as expired?`, body: 'Their expiry date will be set to yesterday.', icon: '⚠️',
+    iconBg: 'background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3)',
+    confirmText: 'Mark Expired', confirmStyle: 'background:#f3727f;color:#000;border-radius:9999px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;border:none;cursor:pointer',
+    onConfirm: () => {
+      fetch('/members/bulk-action/', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')}, body:JSON.stringify({action:'mark_expired',ids:ids.map(Number)}) })
+        .then(r => r.json()).then(data => { if (data.ok) location.reload(); else alert(data.error || 'Action failed.'); });
+    }
+  });
+}
+function bulkSendReminder() { alert(`Reminder feature coming soon.\n${getCheckedIds().length} member(s) selected.`); }
+function getCookie(name) { const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)')); return match ? decodeURIComponent(match[1]) : ''; }
+</script>
+{% endblock %}
