@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
+from .views import HealthCheckView, error_403, error_404, error_500
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -14,6 +15,8 @@ urlpatterns = [
     path('attendance/', include('attendance.urls')),
     path('inventory/', include('inventory.urls')),
     path('cafe/', include('cafe.urls')),
+    # Health check for desktop app
+    path('health/', HealthCheckView.as_view(), name='health'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler403 = 'gymapp.views.error_403'

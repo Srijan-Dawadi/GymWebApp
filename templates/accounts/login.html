@@ -4,69 +4,127 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login — 5 Star Fitness</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    * { font-family: 'CircularSp', 'Helvetica Neue', helvetica, arial, sans-serif; }
+    * { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; }
+
+    :root {
+      --accent:       #f59e0b;
+      --accent-hover: #fbbf24;
+      --accent-dim:   rgba(245,158,11,0.12);
+      --bg-page:      #111111;
+      --bg-card:      #1c1c1c;
+      --bg-input:     #2a2a2a;
+      --border:       #333333;
+      --border-subtle:#1e1e1e;
+      --text-primary: #ffffff;
+      --text-body:    #cccccc;
+      --text-muted:   #888888;
+      --text-disabled:#666666;
+      --danger:       #ef4444;
+      --danger-dim:   rgba(239,68,68,0.12);
+      --danger-border:rgba(239,68,68,0.3);
+      --radius-full:  9999px;
+      --radius-xl:    16px;
+    }
 
     body {
-      background: #121212;
+      background: var(--bg-page);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+    }
+
+    /* Subtle grid pattern background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(245,158,11,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245,158,11,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    /* Amber glow behind card */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 480px;
+      height: 480px;
+      background: radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%);
+      pointer-events: none;
     }
 
     .login-card {
-      background: #181818;
-      border: 1px solid #282828;
-      border-radius: 8px;
-      box-shadow: rgba(0,0,0,0.5) 0px 8px 24px;
-      animation: cardEnter 0.5s cubic-bezier(.4,0,.2,1);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.06);
+      animation: cardEnter 0.45s cubic-bezier(.4,0,.2,1);
+      position: relative;
+      z-index: 1;
     }
     @keyframes cardEnter {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     .input-field {
-      background: #1f1f1f;
-      color: #ffffff;
-      border: none;
-      border-radius: 500px;
-      padding: 12px 20px;
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      padding: 11px 18px;
       width: 100%;
-      font-size: 14px;
-      box-shadow: rgb(18,18,18) 0px 1px 0px, rgb(124,124,124) 0px 0px 0px 1px inset;
-      transition: box-shadow 0.15s ease;
+      font-size: 0.875rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
       outline: none;
     }
-    .input-field::placeholder { color: #6b6b6b; }
+    .input-field::placeholder { color: var(--text-disabled); }
     .input-field:focus {
-      box-shadow: rgb(18,18,18) 0px 1px 0px, #ffffff 0px 0px 0px 1px inset;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
     }
 
     .btn-login {
-      background: #1ed760;
+      background: var(--accent);
       color: #000000;
-      border-radius: 9999px;
-      padding: 14px 32px;
-      font-size: 14px;
+      border-radius: var(--radius-full);
+      padding: 12px 32px;
+      font-size: 0.875rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1.4px;
+      letter-spacing: 0.06em;
       border: none;
       cursor: pointer;
       width: 100%;
-      transition: background 0.15s ease, transform 0.1s ease;
+      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
     }
     .btn-login:hover {
-      background: #1fdf64;
+      background: var(--accent-hover);
       transform: scale(1.02);
+      box-shadow: 0 4px 20px rgba(245,158,11,0.3);
     }
     .btn-login:active { transform: scale(0.99); }
 
-    label { color: #b3b3b3; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; display: block; margin-bottom: 8px; }
+    label {
+      color: var(--text-muted);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: block;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -75,39 +133,41 @@
 
       <!-- Logo -->
       <div class="text-center mb-8">
-        <div class="w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto mb-5" style="background:#1ed760">
-          <span style="color:#000">💪</span>
+        <div class="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-5" style="background:var(--accent)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M9 4v16M15 4v16"/>
+          </svg>
         </div>
-        <h1 class="text-2xl font-bold" style="color:#ffffff">5 Star Fitness</h1>
-        <p class="text-sm mt-1" style="color:#b3b3b3">Sign in to your account</p>
+        <h1 class="text-2xl font-bold" style="color:var(--text-primary)">5 Star Fitness</h1>
+        <p class="text-sm mt-1" style="color:var(--text-muted)">Sign in to your account</p>
       </div>
 
       <form method="post" class="space-y-5">
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-        <div class="px-4 py-3 text-sm flex items-center gap-2" style="background:rgba(243,114,127,0.1);border:1px solid rgba(243,114,127,0.3);color:#f3727f;border-radius:8px">
+        <div class="px-4 py-3 text-sm flex items-center gap-2" style="background:var(--danger-dim);border:1px solid var(--danger-border);color:var(--danger);border-radius:8px">
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           {{ form.non_field_errors }}
         </div>
         {% endif %}
 
         <div>
-          <label>Username</label>
-          <input type="text" name="username" value="{{ form.username.value|default:'' }}"
-            class="input-field" placeholder="Enter your username" autofocus />
+          <label for="id_username">Username</label>
+          <input id="id_username" type="text" name="username" value="{{ form.username.value|default:'' }}"
+            class="input-field" placeholder="Enter your username" autofocus autocomplete="username" />
         </div>
 
         <div>
-          <label>Password</label>
-          <input type="password" name="password"
-            class="input-field" placeholder="Enter your password" />
+          <label for="id_password">Password</label>
+          <input id="id_password" type="password" name="password"
+            class="input-field" placeholder="Enter your password" autocomplete="current-password" />
         </div>
 
         <button type="submit" class="btn-login">Sign In</button>
       </form>
 
-      <p class="text-center text-xs mt-6" style="color:#6b6b6b">Gym Management System</p>
+      <p class="text-center text-xs mt-6" style="color:var(--text-disabled)">Gym Management System</p>
     </div>
   </div>
 </body>

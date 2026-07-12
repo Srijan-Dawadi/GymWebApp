@@ -17,3 +17,11 @@ insightface==0.7.3
 onnxruntime==1.24.1
 opencv-python==4.10.0.84
 numpy==2.2.5
+
+# ── Packaging & Auto-update ───────────────────────────────────────
+pyinstaller==6.11.0
+pyupdater==5.4.0
+# Dependencies for pyupdater signing (install if you want signed updates)
+# pyupdater-s3-plugin==1.3.0
+# pyupdater-azure-blob-plugin==1.1.0
+# pyupdater-keys-plugin==1.2.0
