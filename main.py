@@ -115,7 +115,9 @@ def initialize_django():
         password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin123')
         email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@localhost')
         if not User.objects.filter(username=username).exists():
-            User.objects.create_superuser(username, email, password)
+            user = User.objects.create_superuser(username, email, password)
+            user.profile.role = 'admin'
+            user.profile.save()
             print(f'[Setup] Default admin created: {username}')
             if password == 'admin123':
                 print('[Setup] WARNING: using the default password — change it after first login.')
@@ -123,6 +125,15 @@ def initialize_django():
             print(f'[Setup] Admin user "{username}" already exists')
     except Exception as e:
         print(f'[Setup] Superuser creation skipped: {e}')
+
+
+def _resolve_icon(bundle_dir):
+    """Find the window icon bundled with the app (GTK prefers PNG over ICO)."""
+    for name in ('icon.png', 'icon.ico'):
+        candidate = bundle_dir / 'static' / name
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 # ──────────────────────────────────────────────────────────────
@@ -220,7 +231,11 @@ def main():
     window.events.closing += on_closing
 
     # 6. Start webview event loop (blocks until window closed)
-    webview.start(debug=False, storage_path=str(Path.home() / '.fivestarfitness_webview'))
+    webview.start(
+        debug=False,
+        storage_path=str(Path.home() / '.fivestarfitness_webview'),
+        icon=_resolve_icon(bundle_dir),
+    )
 
     # 7. Cleanup
     server.stop()
