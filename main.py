@@ -111,11 +111,16 @@ def initialize_django():
     try:
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser('admin', 'admin@localhost', 'admin123')
-            print('[Setup] Default admin created: admin / admin123')
+        username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
+        password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin123')
+        email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@localhost')
+        if not User.objects.filter(username=username).exists():
+            User.objects.create_superuser(username, email, password)
+            print(f'[Setup] Default admin created: {username}')
+            if password == 'admin123':
+                print('[Setup] WARNING: using the default password — change it after first login.')
         else:
-            print('[Setup] Admin user already exists')
+            print(f'[Setup] Admin user "{username}" already exists')
     except Exception as e:
         print(f'[Setup] Superuser creation skipped: {e}')
 
