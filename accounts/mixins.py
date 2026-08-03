@@ -3,12 +3,13 @@ from django.core.exceptions import PermissionDenied
 
 
 class AdminRequiredMixin(LoginRequiredMixin):
-    """Allow only users with role='admin'."""
+    """Allow only users with role='admin' (or Django superusers)."""
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        if not hasattr(request.user, 'profile') or request.user.profile.role != 'admin':
+        is_superuser = request.user.is_superuser
+        if not is_superuser and (not hasattr(request.user, 'profile') or request.user.profile.role != 'admin'):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 

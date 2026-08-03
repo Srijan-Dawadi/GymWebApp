@@ -9,4 +9,10 @@ media/
 staticfiles/
 *.log
 static/antispoof/*.onnx
+
+# PyInstaller build artifacts
+dist/
+build/
+
+# Hypothesis test cache
 .hypothesis/

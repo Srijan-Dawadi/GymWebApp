@@ -181,6 +181,15 @@ def initialize_django():
         print(f'[Setup] Superuser creation skipped: {e}')
 
 
+def _resolve_icon(bundle_dir):
+    """Find the window icon bundled with the app (GTK prefers PNG over ICO)."""
+    for name in ('icon.png', 'icon.ico'):
+        candidate = bundle_dir / 'static' / name
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
 # ──────────────────────────────────────────────────────────────
 # Django Server Management
 # ──────────────────────────────────────────────────────────────
@@ -299,7 +308,11 @@ def main():
     window.events.closing += on_closing
 
     # 6. Start webview event loop (blocks until window closed)
-    webview.start(debug=False, storage_path=str(Path.home() / '.fivestarfitness_webview'))
+    webview.start(
+        debug=False,
+        storage_path=str(Path.home() / '.fivestarfitness_webview'),
+        icon=_resolve_icon(bundle_dir),
+    )
 
     # 7. Cleanup
     server.stop()
