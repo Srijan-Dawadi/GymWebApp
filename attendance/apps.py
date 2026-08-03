@@ -25,6 +25,7 @@ class AttendanceConfig(AppConfig):
                 from face_service import _get_face_app, _get_spoof_session
                 logger.info('Warming InsightFace model...')
                 _get_face_app()
+                logger.info('Warming anti-spoof session...')
                 _get_spoof_session()
                 logger.info('Face recognition models ready.')
             except Exception as e:

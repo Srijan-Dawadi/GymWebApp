@@ -35,6 +35,25 @@ def _get_data_dir():
     return data_dir
 
 
+def _get_lan_ips():
+    """Best-effort list of this machine's IPv4 addresses (for LAN access)."""
+    ips = set()
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ips.add(s.getsockname()[0])
+        s.close()
+    except Exception:
+        pass
+    try:
+        import socket
+        ips.update(socket.gethostbyname_ex(socket.gethostname())[2])
+    except Exception:
+        pass
+    return sorted(ips)
+
+
 def _setup_environment():
     """Configure Django settings and paths."""
     bundle_root = _get_bundle_root()
@@ -64,8 +83,14 @@ def _setup_environment():
             secret_file.write_text(key)
             os.environ['SECRET_KEY'] = key
     os.environ.setdefault('DEBUG', 'False')
-    os.environ.setdefault('ALLOWED_HOSTS', 'localhost,127.0.0.1')
-    os.environ.setdefault('CSRF_TRUSTED_ORIGINS', '')
+
+    # ── LAN access: office PCs reach the app via http://<this-ip>:8765 ──
+    lan_ips = _get_lan_ips()
+    allowed_hosts = ['localhost', '127.0.0.1'] + lan_ips
+    csrf_origins = ['http://localhost:8765', 'http://127.0.0.1:8765']
+    csrf_origins += [f'http://{ip}:8765' for ip in lan_ips]
+    os.environ.setdefault('ALLOWED_HOSTS', ','.join(allowed_hosts))
+    os.environ.setdefault('CSRF_TRUSTED_ORIGINS', ','.join(csrf_origins))
     os.environ.setdefault('DATABASE_URL', f'sqlite:///{data_dir / "db.sqlite3"}')
 
     # Create subdirs
@@ -101,17 +126,44 @@ def _collect_static():
     return _run_django_command(['collectstatic', '--noinput', '--clear'])
 
 
-def _create_superuser_if_needed():
-    """Create default admin user if none exists."""
+def _create_superuser_if_needed(data_dir):
+    """Create the initial superuser if none exists.
+
+    Uses a strong one-time password (never a hardcoded default) and forces
+    the admin to change it on first login.
+    """
     try:
         import django
         django.setup()
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        if not User.objects.filter(username='admin').exists():
-            print('[runtime_hook] Creating default admin user...')
-            User.objects.create_superuser('admin', 'admin@localhost', 'admin123')
-            print('[runtime_hook] Default admin created: admin / admin123')
+        if User.objects.filter(is_superuser=True).exists():
+            print('[runtime_hook] Superuser already exists')
+            return
+
+        import secrets
+        password = secrets.token_urlsafe(12)
+        user = User.objects.create_superuser('admin', 'admin@localhost', password)
+
+        profile = getattr(user, 'profile', None)
+        if profile is not None:
+            profile.must_change_password = True
+            profile.save(update_fields=['must_change_password'])
+
+        creds_file = data_dir / 'admin_credentials.txt'
+        try:
+            creds_file.write_text(
+                '5 Star Fitness — First-run admin credentials\n'
+                '-----------------------------------------------\n'
+                f'Username: admin\n'
+                f'One-time password: {password}\n'
+                '\nYou MUST change this password on your first login.\n',
+                encoding='utf-8',
+            )
+            print(f'[runtime_hook] Superuser "admin" created. One-time password saved to: {creds_file}')
+        except OSError as e:
+            print(f'[runtime_hook] Superuser "admin" created, but could not save credentials file: {e}')
+        print('[runtime_hook] IMPORTANT: the admin must change this password on first login.')
     except Exception as e:
         print(f'[runtime_hook] Superuser creation skipped: {e}')
 
@@ -136,7 +188,7 @@ def main():
     _collect_static()
 
     # Create default admin
-    _create_superuser_if_needed()
+    _create_superuser_if_needed(data_dir)
 
     print('[runtime_hook] Initialization complete')
 

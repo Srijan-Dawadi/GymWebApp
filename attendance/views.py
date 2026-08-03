@@ -1,6 +1,7 @@
 import base64
 import csv
 import json
+import logging
 import threading
 
 from django.contrib import messages
@@ -17,10 +18,17 @@ from accounts.mixins import AdminRequiredMixin
 from members.models import Member
 from .models import Attendance
 
+logger = logging.getLogger(__name__)
+
 # ── Scan lock: reject concurrent face-recognition frames instead of queuing ──
 # The ML pipeline (InsightFace + ONNX) can take 2–8s on CPU.
 # Without this, rapid frames pile up and exhaust server memory/threads.
 _scan_lock = threading.Lock()
+
+# ── Payload caps: a 640x480@0.7 JPEG is ~40–120 KB; cap well above that so a
+# LAN client can't POST unbounded base64 and exhaust memory before decode. ──
+MAX_BODY_SIZE   = 2_000_000   # raw request body (base64 is ~1.33x the image)
+MAX_IMAGE_SIZE  = 1_500_000   # decoded image bytes
 
 
 @method_decorator(login_required, name='dispatch')
@@ -98,8 +106,13 @@ class AttendanceView(View):
             return redirect('attendance')
 
         try:
-            Attendance.objects.create(member=member, date=today, method='manual')
-            messages.success(request, f"✅ {member.full_name} checked in manually.")
+            _, created = Attendance.objects.get_or_create(
+                member=member, date=today, defaults={'method': 'manual'}
+            )
+            if created:
+                messages.success(request, f"✅ {member.full_name} checked in manually.")
+            else:
+                messages.warning(request, f"{member.full_name} has already checked in today.")
         except IntegrityError:
             messages.warning(request, f"{member.full_name} has already checked in today.")
         return redirect('attendance')
@@ -115,6 +128,11 @@ def checkin_api(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
+    # Reject oversized payloads before Django buffers/decodes them.
+    content_length = request.META.get('CONTENT_LENGTH')
+    if content_length and content_length.isdigit() and int(content_length) > MAX_BODY_SIZE:
+        return JsonResponse({'error': 'Payload too large'}, status=413)
+
     try:
         body = json.loads(request.body)
         image_b64 = body.get('image')
@@ -123,6 +141,8 @@ def checkin_api(request):
 
     if not image_b64:
         return JsonResponse({'error': 'image field required'}, status=400)
+    if len(image_b64) > MAX_BODY_SIZE:
+        return JsonResponse({'error': 'Payload too large'}, status=413)
 
     # Decode base64 → bytes
     try:
@@ -132,6 +152,9 @@ def checkin_api(request):
         image_bytes = base64.b64decode(image_b64)
     except Exception:
         return JsonResponse({'error': 'Invalid image data'}, status=400)
+
+    if len(image_bytes) > MAX_IMAGE_SIZE:
+        return JsonResponse({'error': 'Payload too large'}, status=413)
 
     # Extract embedding with liveness check
     # Acquire the scan lock non-blocking — if another frame is already being
@@ -163,58 +186,75 @@ def checkin_api(request):
 
     embedding = result['embedding']
 
-    # Match against stored members
-    member_id, score = find_best_match(embedding)
-
-    if member_id is None:
-        return JsonResponse({'status': 'unknown', 'message': 'Face not recognised', 'score': round(score, 3)}, status=200)
-
-    member = Member.objects.filter(pk=member_id).first()
-    if not member:
-        return JsonResponse({'error': 'Member not found'}, status=404)
-
-    # Sync status before checking
-    from members.models import Member as M
-    M.sync_expired_statuses()
-    member.refresh_from_db()
-
-    # Check flags/status in priority order: flagged → suspended → expired
-    if member.is_flagged:
-        return JsonResponse({
-            'status': 'flagged',
-            'member_name': member.full_name,
-            'message': f"{member.full_name} is flagged and cannot use face attendance. Contact admin.",
-        }, status=200)
-
-    if member.status == 'suspended':
-        return JsonResponse({
-            'status': 'suspended',
-            'member_name': member.full_name,
-            'message': f"{member.full_name}'s membership is suspended.",
-        }, status=200)
-
-    if member.status == 'expired':
-        return JsonResponse({
-            'status': 'expired',
-            'member_name': member.full_name,
-            'message': f"{member.full_name}'s membership expired on {member.expiry_date}. Please renew.",
-        }, status=200)
-
-    today = timezone.localdate()
+    # Matching + business rules. Any unexpected failure here (numpy, DB hiccup,
+    # etc.) must return a graceful error — never a 500 traceback for a camera frame.
     try:
-        Attendance.objects.create(member=member, date=today, method='face')
+        # Match against stored members
+        member_id, score = find_best_match(embedding)
+
+        if member_id is None:
+            return JsonResponse({'status': 'unknown', 'message': 'Face not recognised', 'score': round(score, 3)}, status=200)
+
+        member = Member.objects.filter(pk=member_id).first()
+        if not member:
+            return JsonResponse({'error': 'Member not found'}, status=404)
+
+        # Sync status before checking
+        from members.models import Member as M
+        M.sync_expired_statuses()
+        member.refresh_from_db()
+
+        # Check flags/status in priority order: flagged → suspended → expired
+        if member.is_flagged:
+            return JsonResponse({
+                'status': 'flagged',
+                'member_name': member.full_name,
+                'message': f"{member.full_name} is flagged and cannot use face attendance. Contact admin.",
+            }, status=200)
+
+        if member.status == 'suspended':
+            return JsonResponse({
+                'status': 'suspended',
+                'member_name': member.full_name,
+                'message': f"{member.full_name}'s membership is suspended.",
+            }, status=200)
+
+        if member.status == 'expired':
+            return JsonResponse({
+                'status': 'expired',
+                'member_name': member.full_name,
+                'message': f"{member.full_name}'s membership expired on {member.expiry_date}. Please renew.",
+            }, status=200)
+
+        today = timezone.localdate()
+        try:
+            _, created = Attendance.objects.get_or_create(
+                member=member, date=today, defaults={'method': 'face'}
+            )
+            if not created:
+                return JsonResponse({
+                    'status': 'duplicate',
+                    'member_name': member.full_name,
+                    'member_id': member.pk,
+                }, status=409)
+            return JsonResponse({
+                'status': 'ok',
+                'member_name': member.full_name,
+                'member_id': member.pk,
+                'score': round(score, 3),
+            })
+        except IntegrityError:
+            return JsonResponse({
+                'status': 'duplicate',
+                'member_name': member.full_name,
+                'member_id': member.pk,
+            }, status=409)
+    except Exception as e:
+        logger.exception('Unexpected error during face check-in: %s', e)
         return JsonResponse({
-            'status': 'ok',
-            'member_name': member.full_name,
-            'member_id': member.pk,
-            'score': round(score, 3),
-        })
-    except IntegrityError:
-        return JsonResponse({
-            'status': 'duplicate',
-            'member_name': member.full_name,
-            'member_id': member.pk,
-        }, status=409)
+            'status': 'error',
+            'message': 'Unexpected error during check-in. Please try again.',
+        }, status=200)
 
 
 class AttendanceExportView(AdminRequiredMixin, View):

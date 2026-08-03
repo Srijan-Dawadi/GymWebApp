@@ -41,6 +41,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'accounts.middleware.ForcePasswordChangeMiddleware',
 ]
 
 ROOT_URLCONF = 'gymapp.urls'
@@ -93,5 +94,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# ── Security headers (HTTP-safe) ───────────────────────────────────────
+# HSTS and Secure cookies are intentionally NOT enabled: the desktop app is
+# served over plain HTTP on the LAN, and those flags would break access.
+SECURE_CONTENT_TYPE_NOSNIFF = True   # X-Content-Type-Options: nosniff
+SECURE_REFERRER_POLICY = 'same-origin'
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'

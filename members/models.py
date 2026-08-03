@@ -56,10 +56,24 @@ class Member(models.Model):
         cls.objects.filter(status='expired', expiry_date__gte=today).update(status='active')
 
     def save(self, *args, **kwargs):
-        # Auto-calculate expiry_date from plan duration (only when plan/join_date are set)
-        if self.membership_plan_id and self.join_date:
-            self.expiry_date = self.compute_expiry_date()
+        # Derive expiry_date from join_date + plan duration ONLY when the
+        # member is first created and no explicit expiry was supplied.
+        # On subsequent saves the stored expiry_date is the source of truth —
+        # it is extended by approved payments and must never be recomputed
+        # (that would clobber renewals whenever an unrelated field is edited).
+        if self._state.adding:
+            if self.membership_plan_id and self.join_date and not self.expiry_date:
+                self.expiry_date = self.compute_expiry_date()
         # Auto-calculate status (guard against expiry_date being unset on brand-new unsaved instances)
         if self.status != 'suspended' and self.expiry_date:
             self.status = 'active' if self.expiry_date > date.today() else 'expired'
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Keep the in-memory descriptor matrix in sync when a member is removed.
+        try:
+            from face_service import invalidate_descriptor_cache
+            invalidate_descriptor_cache()
+        except ImportError:
+            pass
+        super().delete(*args, **kwargs)

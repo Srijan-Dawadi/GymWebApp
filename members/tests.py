@@ -44,7 +44,7 @@ class ExpiryDateDerivationTest(HypothesisTestCase):
         duration_days=st.integers(min_value=1, max_value=3650),
     )
     @settings(max_examples=100)
-    def test_expiry_date_equals_join_date_plus_duration(self, join_date, duration_days):
+    def test_expiry_derived_on_create_when_not_provided(self, join_date, duration_days):
         plan = MembershipPlan.objects.create(
             name=f'Plan-{join_date}-{duration_days}',
             price='50.00',
@@ -57,11 +57,51 @@ class ExpiryDateDerivationTest(HypothesisTestCase):
             face_descriptor=[0.0] * 128,
             join_date=join_date,
             membership_plan=plan,
-            expiry_date=join_date,  # will be overwritten by save()
         )
         member.save()
         expected = join_date + timedelta(days=duration_days)
         self.assertEqual(member.expiry_date, expected)
+
+    @given(
+        join_date=st.dates(min_value=date(2020, 1, 1), max_value=date(2030, 12, 31)),
+        duration_days=st.integers(min_value=1, max_value=3650),
+        extra_days=st.integers(min_value=0, max_value=3650),
+    )
+    @settings(max_examples=100)
+    def test_explicit_expiry_on_create_is_preserved(self, join_date, duration_days, extra_days):
+        # An explicitly supplied expiry (e.g. a transfer-in member who already
+        # paid) must not be clobbered by plan-based derivation.
+        plan = MembershipPlan.objects.create(
+            name=f'Plan-{join_date}-{duration_days}-{extra_days}',
+            price='50.00',
+            duration_days=duration_days,
+        )
+        custom_expiry = join_date + timedelta(days=duration_days + extra_days)
+        member = Member(
+            full_name='Test',
+            phone='000',
+            email=f'test_{join_date}_{duration_days}_{extra_days}@example.com',
+            face_descriptor=[0.0] * 128,
+            join_date=join_date,
+            membership_plan=plan,
+            expiry_date=custom_expiry,
+        )
+        member.save()
+        self.assertEqual(member.expiry_date, custom_expiry)
+
+    def test_expiry_not_clobbered_on_later_updates(self):
+        # Regression: updating an unrelated field (or a payment extension)
+        # must never reset expiry_date back to join_date + duration.
+        plan = make_plan(duration_days=30)
+        member = make_member(plan=plan)
+        member.save()
+        extended = date.today() + timedelta(days=120)
+        member.expiry_date = extended
+        member.save()
+        member.phone = '9999999999'
+        member.save()
+        member.refresh_from_db()
+        self.assertEqual(member.expiry_date, extended)
 
 
 class StatusDerivationTest(HypothesisTestCase):
@@ -115,18 +155,28 @@ class FaceDescriptorRoundTripTest(HypothesisTestCase):
             self.assertAlmostEqual(original, recovered, places=6)
 
 
-class CascadeDeleteTest(TestCase):
-    # Feature: gym-management, Property: Cascade delete
+class AttendanceProtectionTest(TestCase):
+    # Feature: gym-management, Property: Attendance history is never destroyed
 
-    def test_deleting_member_removes_attendance_records(self):
+    def test_member_with_attendance_history_cannot_be_deleted(self):
+        from django.db.models import ProtectedError
         from attendance.models import Attendance
         plan = make_plan()
         member = make_member(plan=plan)
         member.save()
         Attendance.objects.create(member=member, date=date.today(), method='manual')
+        with self.assertRaises(ProtectedError):
+            member.delete()
         self.assertEqual(Attendance.objects.filter(member=member).count(), 1)
+        self.assertTrue(Member.objects.filter(pk=member.pk).exists())
+
+    def test_member_without_history_can_be_deleted(self):
+        plan = make_plan()
+        member = make_member(plan=plan)
+        member.save()
+        member_id = member.pk
         member.delete()
-        self.assertEqual(Attendance.objects.filter(member_id=member.pk).count(), 0)
+        self.assertFalse(Member.objects.filter(pk=member_id).exists())
 
 
 class MemberSearchTest(TestCase):

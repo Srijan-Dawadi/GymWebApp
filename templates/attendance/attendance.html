@@ -45,6 +45,7 @@
       </div>
       <div style="position:relative;border-radius:8px;overflow:hidden;background:#0a0a0a;aspect-ratio:16/9;margin-bottom:12px">
         <video id="fr-video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover"></video>
+        <canvas id="fr-overlay" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
         <canvas id="fr-canvas" class="hidden"></canvas>
         <div id="success-overlay" class="absolute inset-0 hidden flex-col items-center justify-center gap-3" style="background:rgba(30,215,96,0.93)">
           <div style="font-size:64px">✅</div>
@@ -224,6 +225,7 @@ let isScanning    = false;
 let lastCheckedIn = {};
 let faceApiReady  = false;   // true once models loaded
 let detectLoop    = null;    // requestAnimationFrame handle
+let lastNoFaceHint = 0;      // throttle timestamp for the "no face" hint
 
 // ── State machine ─────────────────────────────────────────────
 // 'idle'      : camera off
@@ -233,6 +235,7 @@ let detectLoop    = null;    // requestAnimationFrame handle
 let scanState = 'idle';
 const video = document.getElementById('fr-video');
 const canvas = document.getElementById('fr-canvas');
+const overlayCanvas = document.getElementById('fr-overlay');
 const statusEl = document.getElementById('fr-status');
 const resultEl = document.getElementById('fr-result');
 const successOvl = document.getElementById('success-overlay');
@@ -325,6 +328,7 @@ async function runDetection() {
   if (!faceApiReady || scanState !== 'watching') return;
   if (video.readyState < 2) return;  // video not ready yet
 
+  clearFaceBox();
   try {
     const detection = await faceapi.detectSingleFace(
       video,
@@ -332,6 +336,7 @@ async function runDetection() {
     );
 
     if (detection) {
+      drawFaceBox(detection);
       // Face found — wait 1.5s for member to naturally face camera, then verify
       scanState = 'verifying';
       stopDetectLoop();
@@ -342,6 +347,35 @@ async function runDetection() {
   } catch (e) {
     console.warn('Detection error:', e);
   }
+}
+
+// ── Live detection box overlay ───────────────────────────────
+// Draws a box around a detected face, aligned to the video's
+// object-fit:cover crop so the box tracks the face on screen.
+function drawFaceBox(detection) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return;
+  const rect = video.getBoundingClientRect();
+  const cw = rect.width, ch = rect.height;
+  overlayCanvas.width = cw; overlayCanvas.height = ch;
+  const ctx = overlayCanvas.getContext('2d');
+  ctx.clearRect(0, 0, cw, ch);
+  const scale = Math.max(cw / vw, ch / vh);
+  const left = (cw - vw * scale) / 2;
+  const top  = (ch - vh * scale) / 2;
+  const box = detection.box;
+  const x = left + box.x * scale, y = top + box.y * scale;
+  const w = box.width * scale, h = box.height * scale;
+  ctx.strokeStyle = '#1ed760';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = 'rgba(30,215,96,0.12)';
+  ctx.fillRect(x, y, w, h);
+}
+
+function clearFaceBox() {
+  const ctx = overlayCanvas.getContext('2d');
+  ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 }
 
 // ── Fallback: interval scan if face-api unavailable ──────────
@@ -406,6 +440,12 @@ async function sendToServer() {
       showResult('Liveness check failed — ensure good lighting.', false);
       scanState = 'cooldown';  // showSpoofOverlay resumes after 2.5s
     } else if (data.status === 'no_face') {
+      // Bad lighting / too far / no face — keep scanning, but hint (throttled)
+      const now = Date.now();
+      if (now - lastNoFaceHint > 10000) {
+        lastNoFaceHint = now;
+        setStatus('🔍 No face detected — check lighting & position...');
+      }
       scanState = 'watching';
       startDetectLoop();
     } else if (data.status === 'busy') {
@@ -435,11 +475,18 @@ async function sendToServer() {
       setStatus(`⚠️ ${data.message}`, 'error');
       scanState = 'watching';
       setTimeout(startDetectLoop, 3000);
+    } else {
+      // Unknown status or an {error: ...} response (400/404) — never leave the
+      // camera frozen in 'verifying'
+      showResult(data.error || data.message || 'Unexpected response from server.', false);
+      scanState = 'watching';
+      startDetectLoop();
     }
   } catch (err) {
     console.error('Scan error:', err);
+    setStatus('⚠️ Connection/server error — retrying...', 'error');
     scanState = 'watching';
-    startDetectLoop();
+    setTimeout(startDetectLoop, 3000);
   }
   isScanning = false;
 }
@@ -470,6 +517,7 @@ function stopCamera() {
   scanState = 'idle';
   stopDetectLoop();
   stopFallbackScan();
+  clearFaceBox();
   if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
   document.getElementById('camera-panel').classList.add('hidden');
   document.getElementById('camera-gate').classList.remove('hidden');
@@ -477,9 +525,16 @@ function stopCamera() {
 
 function getCookie(name) { const v = `; ${document.cookie}`; const p = v.split(`; ${name}=`); if (p.length === 2) return p.pop().split(';').shift(); return ''; }
 
+// Escape user-controlled strings before injecting into innerHTML (member names
+// come from the server JSON and must never execute as markup).
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function addCheckinToList(name, method) {
   const list = document.getElementById('checkin-list');
   if (!list) return;
+  name = esc(name);
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
   const dateStr = now.toLocaleDateString('en-CA');

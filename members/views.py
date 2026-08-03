@@ -3,6 +3,7 @@ from datetime import date
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import ProtectedError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
@@ -96,7 +97,7 @@ class MemberDetailView(View):
 
 def _extract_and_save_embedding(member):
     """Read the member's saved photo and extract InsightFace embedding."""
-    from face_service import extract_embedding
+    from face_service import extract_embedding, invalidate_descriptor_cache
     try:
         with open(member.photo.path, 'rb') as f:
             image_bytes = f.read()
@@ -104,6 +105,7 @@ def _extract_and_save_embedding(member):
         # extract_embedding returns a dict with 'status' and 'embedding'
         if result and result.get('status') == 'ok' and result.get('embedding'):
             Member.objects.filter(pk=member.pk).update(face_descriptor=result['embedding'])
+            invalidate_descriptor_cache()
             return True
         return False
     except Exception:
@@ -127,7 +129,9 @@ class MemberCreateView(StaffRequiredMixin, View):
                 try:
                     embeddings = json.loads(embeddings_json)
                     if embeddings and isinstance(embeddings, list) and len(embeddings) > 0:
+                        from face_service import invalidate_descriptor_cache
                         Member.objects.filter(pk=member.pk).update(face_descriptor=embeddings)
+                        invalidate_descriptor_cache()
                         messages.success(request, f"Member '{member.full_name}' registered with {len(embeddings)}-angle face recognition.")
                         return redirect('member_detail', pk=member.pk)
                 except (json.JSONDecodeError, Exception):
@@ -164,7 +168,9 @@ class MemberEditView(StaffRequiredMixin, View):
                 try:
                     embeddings = json.loads(embeddings_json)
                     if embeddings and isinstance(embeddings, list) and len(embeddings) > 0:
+                        from face_service import invalidate_descriptor_cache
                         Member.objects.filter(pk=member.pk).update(face_descriptor=embeddings)
+                        invalidate_descriptor_cache()
                         messages.success(request, f"Member updated with {len(embeddings)}-angle face recognition.")
                         return redirect('member_detail', pk=member.pk)
                 except (json.JSONDecodeError, Exception):
@@ -192,7 +198,15 @@ class MemberDeleteView(AdminRequiredMixin, View):
     def post(self, request, pk):
         member = get_object_or_404(Member, pk=pk)
         name = member.full_name
-        member.delete()
+        try:
+            member.delete()
+        except ProtectedError:
+            messages.error(
+                request,
+                f"Cannot delete '{name}' — they have payment/attendance history. "
+                f"Suspend the member instead to keep their records intact."
+            )
+            return redirect('member_detail', pk=pk)
         messages.success(request, f"Member '{name}' deleted.")
         return redirect('member_list')
 

@@ -21,9 +21,8 @@ class HealthCheckView(View):
         # Check if ML models are loadable (optional, can be slow)
         ml_status = 'unknown'
         try:
-            from face_service import _get_face_app, _get_spoof_session
+            from face_service import _get_face_app
             face_app = _get_face_app()
-            spoof_sess = _get_spoof_session()
             ml_status = 'ok' if face_app else 'unavailable'
         except Exception:
             ml_status = 'error'

@@ -1,4 +1,7 @@
+from datetime import date
+
 from django.db import models
+
 from members.models import Member
 
 
@@ -15,7 +18,7 @@ class Payment(models.Model):
         ('flagged',  'Flagged'),
     ]
 
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='payments')
+    member = models.ForeignKey(Member, on_delete=models.PROTECT, related_name='payments')
     amount = models.DecimalField(max_digits=8, decimal_places=2)
     date_paid = models.DateField()
     period_start = models.DateField()
@@ -38,15 +41,16 @@ class Payment(models.Model):
     def __str__(self):
         return f"{self.member.full_name} — ${self.amount} ({self.date_paid}) [{self.approval_status}]"
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        # Update member expiry_date and status after payment
-        member = self.member
-        member.expiry_date = self.period_end
-        # Bypass the auto-recalculate in Member.save by directly updating
-        from datetime import date
-        member.status = 'active' if self.period_end > date.today() else 'expired'
+    def apply_to_membership(self):
+        """Extend the member's expiry to this payment's period_end.
+
+        Intentionally idempotent and only ever extends forward: if the member's
+        current expiry is already later than period_end (e.g. an earlier renewal
+        or a backdated payment), the current expiry is preserved.
+        """
+        member = Member.objects.get(pk=self.member_id)
+        new_expiry = max(member.expiry_date, self.period_end)
         Member.objects.filter(pk=member.pk).update(
-            expiry_date=self.period_end,
-            status=member.status,
+            expiry_date=new_expiry,
+            status='active' if new_expiry > date.today() else 'expired',
         )

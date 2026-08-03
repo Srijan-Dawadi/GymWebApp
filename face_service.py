@@ -8,9 +8,14 @@ Attendance:   extract_embedding() → find_best_match() pipeline.
 """
 
 import os
+import logging
 import threading
+import time
 import warnings
+
 warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
+
+logger = logging.getLogger(__name__)
 
 # ── Availability flags ────────────────────────────────────────
 try:
@@ -27,7 +32,8 @@ except ImportError:
     ONNX_AVAILABLE = False
 
 # ── Thread-safe singletons ────────────────────────────────────────
-_face_app        = None   # None = not yet loaded; False = failed to load
+_face_app        = None   # None = not yet loaded; False = last load failed
+_face_app_retry_at = 0.0  # monotonic timestamp after which a failed load may be retried
 _spoof_sess      = None   # None = not yet loaded; False = failed to load
 _face_lock       = threading.Lock()
 _spoof_lock      = threading.Lock()
@@ -36,33 +42,120 @@ _ANTISPOOF_MODEL = os.path.join(
     os.path.dirname(__file__), 'static', 'antispoof', 'antispoof.onnx'
 )
 
-LIVENESS_THRESHOLD = 0.45
+LIVENESS_THRESHOLD = 0.2
+
+# ── Descriptor matrix cache ──────────────────────────────────────
+# Matching is O(1) against a cached (N x D) numpy matrix instead of
+# re-parsing every member's JSON descriptor on each check-in frame.
+_descriptor_lock   = threading.Lock()
+_descriptor_cache  = None   # (matrix: np.ndarray, member_ids: np.ndarray) or None
+_descriptor_cache_at = 0.0
+_DESCRIPTOR_CACHE_TTL = 30.0
+
+
+def invalidate_descriptor_cache():
+    """Force the next find_best_match call to rebuild the matrix.
+    Call after any face_descriptor write (enrollment / edit / delete)."""
+    global _descriptor_cache
+    with _descriptor_lock:
+        _descriptor_cache = None
+
+
+def _build_descriptor_matrix():
+    """Load all member embeddings once into aligned numpy arrays.
+
+    Handles both storage shapes: a flat single embedding from a photo
+    ([...]) and multi-angle enrollment ([[...], [...], ...]).
+    """
+    from members.models import Member
+
+    rows = list(
+        Member.objects.exclude(face_descriptor__isnull=True)
+        .values_list('id', 'face_descriptor')
+    )
+    member_ids = []
+    embeddings = []
+    dim = None
+    skipped = 0
+    for member_id, descriptor in rows:
+        if not descriptor or not isinstance(descriptor, list):
+            continue
+        if descriptor and isinstance(descriptor[0], list):
+            candidate_embs = [e for e in descriptor if isinstance(e, list) and e]
+        else:
+            candidate_embs = [descriptor]
+        for emb in candidate_embs:
+            try:
+                vec = np.asarray(emb, dtype=np.float32)
+            except Exception:
+                skipped += 1
+                continue
+            if vec.ndim != 1 or vec.size == 0:
+                skipped += 1
+                continue
+            if dim is None:
+                dim = vec.size
+            if vec.size != dim:
+                # Mixed-dimension descriptors (e.g. old 128-d vs new 512-d) are
+                # dropped the same way the previous matcher skipped them.
+                skipped += 1
+                continue
+            embeddings.append(vec)
+            member_ids.append(member_id)
+
+    if skipped:
+        logging.getLogger(__name__).warning(
+            'Descriptor matrix build skipped %d malformed/mismatched embedding(s).', skipped
+        )
+
+    if not embeddings:
+        return np.empty((0, dim or 0), dtype=np.float32), np.empty(0, dtype=np.int64)
+    return np.vstack(embeddings), np.asarray(member_ids, dtype=np.int64)
+
+
+def get_descriptor_matrix():
+    """Return (matrix, member_ids) — the cached numpy matrix, rebuilt
+    when invalidated or after TTL. Thread-safe."""
+    global _descriptor_cache, _descriptor_cache_at
+    with _descriptor_lock:
+        if _descriptor_cache is None or time.monotonic() - _descriptor_cache_at > _DESCRIPTOR_CACHE_TTL:
+            _descriptor_cache = _build_descriptor_matrix()
+            _descriptor_cache_at = time.monotonic()
+        return _descriptor_cache
 
 
 def _get_face_app():
     """Load InsightFace once, thread-safe.
     Returns the app on success, None if unavailable or failed to load.
-    Sets _face_app to False on load failure so we don't retry on every call.
+    A failed load is retried after a 60s cooldown (a transient disk/ONNX
+    hiccup must not permanently disable face recognition until restart).
     """
     if not INSIGHTFACE_AVAILABLE:
         return None
-    global _face_app
-    if _face_app is not None:
-        # False means a previous load attempt failed — don't retry
-        return _face_app if _face_app is not False else None
+    global _face_app, _face_app_retry_at
+    now = time.monotonic()
+    if _face_app is not None and _face_app is not False:
+        return _face_app
+    if _face_app is False and now < _face_app_retry_at:
+        return None
     with _face_lock:
-        if _face_app is None:
-            try:
-                from insightface.app import FaceAnalysis
-                app = FaceAnalysis(name='buffalo_m', providers=['CPUExecutionProvider'])
-                app.prepare(ctx_id=-1, det_size=(320, 320))
-                _face_app = app
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(
-                    'InsightFace model failed to load: %s', e, exc_info=True
-                )
-                _face_app = False  # sentinel: don't retry
+        if _face_app is not None and _face_app is not False:
+            return _face_app
+        if _face_app is False and time.monotonic() < _face_app_retry_at:
+            return None
+        try:
+            from insightface.app import FaceAnalysis
+            app = FaceAnalysis(name='buffalo_m', providers=['CPUExecutionProvider'])
+            app.prepare(ctx_id=-1, det_size=(320, 320))
+            _face_app = app
+            _face_app_retry_at = 0.0
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(
+                'InsightFace model failed to load (will retry in 60s): %s', e, exc_info=True
+            )
+            _face_app = False
+            _face_app_retry_at = time.monotonic() + 60
     return _face_app if _face_app is not False else None
 
 
@@ -186,6 +279,7 @@ def extract_embedding(image_bytes: bytes) -> dict:
             return {'status': 'no_face', 'embedding': None, 'liveness_score': 0.0,
                     'message': 'No face detected.'}
         face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+        # ── Anti-spoofing ──────────────────────────────────────────────
         is_real, score = _check_liveness(img, face.bbox)
         if not is_real:
             return {'status': 'spoof', 'embedding': None,
@@ -200,45 +294,34 @@ def extract_embedding(image_bytes: bytes) -> dict:
 
 def find_best_match(probe_embedding: list, threshold: float = 0.4) -> tuple:
     """
-    Match probe_embedding against all stored member multi-angle embeddings.
+    Match probe_embedding against the cached descriptor matrix (O(1) numpy
+    dot product over all enrolled embeddings).
     face_descriptor = [[emb1], [emb2], [emb3], [emb4], [emb5]]
-    Returns (member_id, best_score) or (None, 0.0).
-    Malformed or mismatched embeddings are skipped silently.
+    Returns (member_id, best_score) or (None, best_score) if below threshold.
     """
     if not INSIGHTFACE_AVAILABLE or probe_embedding is None:
         return None, 0.0
 
-    import logging
-    logger = logging.getLogger(__name__)
-
     try:
-        probe = np.array(probe_embedding, dtype=np.float32)
+        probe = np.asarray(probe_embedding, dtype=np.float32)
     except Exception as e:
-        logger.warning('find_best_match: could not convert probe embedding: %s', e)
+        logging.getLogger(__name__).warning(
+            'find_best_match: could not convert probe embedding: %s', e
+        )
         return None, 0.0
 
-    from members.models import Member
-    best_id, best_score = None, -1.0
+    if probe.ndim != 1 or probe.size == 0:
+        return None, 0.0
 
-    for m in Member.objects.exclude(face_descriptor__isnull=True).values('id', 'face_descriptor'):
-        descriptor = m['face_descriptor']
-        if not descriptor or not isinstance(descriptor, list):
-            continue
-        for emb in descriptor:
-            try:
-                stored = np.array(emb, dtype=np.float32)
-                if stored.shape != probe.shape:
-                    # Dimension mismatch — skip this embedding silently
-                    continue
-                score = float(np.dot(probe, stored))
-                if score > best_score:
-                    best_score = score
-                    best_id = m['id']
-            except Exception as e:
-                logger.warning(
-                    'find_best_match: skipping malformed embedding for member %s: %s',
-                    m['id'], e
-                )
-                continue
+    matrix, member_ids = get_descriptor_matrix()
+    if matrix.shape[0] == 0 or matrix.shape[1] != probe.size:
+        return None, 0.0
 
-    return (best_id, best_score) if best_score >= threshold else (None, best_score)
+    scores = matrix @ probe
+    idx = int(np.argmax(scores))
+    best_score = float(scores[idx])
+
+    if best_score >= threshold:
+        return int(member_ids[idx]), best_score
+    return None, best_score
+

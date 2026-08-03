@@ -45,6 +45,26 @@ def _get_data_dir():
     return data_dir
 
 
+def _get_lan_ips():
+    """Best-effort list of this machine's IPv4 addresses (for LAN access)."""
+    ips = set()
+    try:
+        import socket
+        # Trick: opening a UDP socket to a public IP reveals the outbound interface IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ips.add(s.getsockname()[0])
+        s.close()
+    except Exception:
+        pass
+    try:
+        import socket
+        ips.update(socket.gethostbyname_ex(socket.gethostname())[2])
+    except Exception:
+        pass
+    return sorted(ips)
+
+
 def setup_desktop_environment():
     """Configure Django settings and paths for desktop mode."""
     if getattr(sys, 'frozen', False):
@@ -76,14 +96,61 @@ def setup_desktop_environment():
             os.environ['SECRET_KEY'] = key
 
     os.environ.setdefault('DEBUG', 'False')
-    os.environ.setdefault('ALLOWED_HOSTS', 'localhost,127.0.0.1')
-    os.environ.setdefault('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:8765')
+
+    # ── LAN access: office PCs reach the app via http://<this-ip>:8765 ──
+    # Allow localhost plus every discovered local IP, and register matching
+    # CSRF-trusted origins so POST forms work from other machines.
+    lan_ips = _get_lan_ips()
+    allowed_hosts = ['localhost', '127.0.0.1'] + lan_ips
+    csrf_origins = ['http://localhost:8765', 'http://127.0.0.1:8765']
+    csrf_origins += [f'http://{ip}:8765' for ip in lan_ips]
+    os.environ.setdefault('ALLOWED_HOSTS', ','.join(allowed_hosts))
+    os.environ.setdefault('CSRF_TRUSTED_ORIGINS', ','.join(csrf_origins))
     os.environ.setdefault('DATABASE_URL', f'sqlite:///{data_dir / "db.sqlite3"}')
 
     (data_dir / 'media').mkdir(parents=True, exist_ok=True)
     (data_dir / 'logs').mkdir(parents=True, exist_ok=True)
 
     return bundle_dir, data_dir
+
+
+def _bootstrap_superuser(data_dir):
+    """Create the initial superuser if none exists.
+
+    Instead of a hardcoded default password, a strong one-time password is
+    generated and the user is forced to change it on first login.
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    if User.objects.filter(is_superuser=True).exists():
+        print('[Setup] Superuser already exists')
+        return
+
+    import secrets as _secrets
+    password = _secrets.token_urlsafe(12)
+    user = User.objects.create_superuser('admin', 'admin@localhost', password)
+
+    profile = getattr(user, 'profile', None)
+    if profile is not None:
+        profile.must_change_password = True
+        profile.save(update_fields=['must_change_password'])
+
+    creds_file = data_dir / 'admin_credentials.txt'
+    try:
+        creds_file.write_text(
+            '5 Star Fitness — First-run admin credentials\n'
+            '-----------------------------------------------\n'
+            f'Username: admin\n'
+            f'One-time password: {password}\n'
+            '\nYou MUST change this password on your first login.\n',
+            encoding='utf-8',
+        )
+        print(f'[Setup] Superuser "admin" created. One-time password saved to: {creds_file}')
+    except OSError as e:
+        print(f'[Setup] Superuser "admin" created, but could not save credentials file: {e}')
+    print('[Setup] Credentials: username=admin  (password is in the file above)')
+    print('[Setup] IMPORTANT: the admin must change this password on first login.')
 
 
 def initialize_django():
@@ -109,13 +176,7 @@ def initialize_django():
         print(f'[Setup] Static collect error: {e}')
 
     try:
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser('admin', 'admin@localhost', 'admin123')
-            print('[Setup] Default admin created: admin / admin123')
-        else:
-            print('[Setup] Admin user already exists')
+        _bootstrap_superuser(_get_data_dir())
     except Exception as e:
         print(f'[Setup] Superuser creation skipped: {e}')
 
@@ -138,12 +199,28 @@ class DjangoServer:
         self._thread.start()
 
     def _run_server(self):
-        from wsgiref.simple_server import make_server
         from django.core.wsgi import get_wsgi_application
 
         application = get_wsgi_application()
-        print(f'[Server] Starting on {self.url}...')
-        self.server = make_server('127.0.0.1', self.port, application)
+
+        # Bind to all interfaces so office PCs can reach the app over the LAN.
+        host = '0.0.0.0'
+
+        try:
+            # Prefer Waitress: threaded + stable on Windows.
+            from waitress import create_server
+            print(f'[Server] Starting (Waitress) on http://0.0.0.0:{self.port}...')
+            self.server = create_server(application, host=host, port=self.port, threads=8)
+            self._ready.set()
+            self.server.run()
+            return
+        except ImportError:
+            pass
+
+        # Fallback: stdlib wsgiref (single-threaded, dev only)
+        from wsgiref.simple_server import make_server
+        print(f'[Server] Starting (wsgiref) on http://0.0.0.0:{self.port}...')
+        self.server = make_server(host, self.port, application)
         self._ready.set()
         self.server.serve_forever()
 
@@ -154,7 +231,14 @@ class DjangoServer:
     def stop(self):
         if self.server:
             print('[Server] Stopping...')
-            self.server.shutdown()
+            try:
+                self.server.close()
+            except AttributeError:
+                pass
+            try:
+                self.server.shutdown()
+            except AttributeError:
+                pass
             self.server = None
 
 

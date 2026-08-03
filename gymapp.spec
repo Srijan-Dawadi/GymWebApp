@@ -43,6 +43,7 @@ hiddenimports = [
     'accounts',
     'accounts.mixins',
     'accounts.views',
+    'accounts.middleware',
     'accounts.dashboard_views',
     'accounts.reports_views',
     'accounts.user_views',

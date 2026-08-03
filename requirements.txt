@@ -10,6 +10,8 @@ asgiref==3.11.1
 sqlparse==0.5.5
 tzdata==2026.1
 hypothesis==6.131.15
+# Threaded WSGI server for the desktop app (LAN multi-device access)
+waitress==3.0.2
 
 # ── Face recognition ──────────────────────────────────────────────
 # Large packages — first install may take 3–5 minutes
@@ -20,6 +22,8 @@ numpy==2.2.5
 
 # ── Packaging & Auto-update ───────────────────────────────────────
 pyinstaller==6.11.0
+# Desktop window for the entry point (main.py imports webview)
+pywebview==6.2.1
 pyupdater==5.4.0
 # Dependencies for pyupdater signing (install if you want signed updates)
 # pyupdater-s3-plugin==1.3.0

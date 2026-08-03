@@ -145,8 +145,8 @@ class UpdateOrderStatusView(StaffRequiredMixin, View):
             response_data['order'] = {
                 'id': order.pk,
                 'table_number': order.table_number,
-                'created_at': order.created_at.strftime('%-I:%M %p'),
-                'payment_received_at': order.payment_received_at.strftime('%-I:%M %p'),
+                'created_at': order.created_at.strftime('%I:%M %p').lstrip('0'),
+                'payment_received_at': order.payment_received_at.strftime('%I:%M %p').lstrip('0'),
                 'items': items,
             }
 

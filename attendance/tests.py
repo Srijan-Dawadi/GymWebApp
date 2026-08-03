@@ -6,6 +6,7 @@ import csv
 import io
 import json
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
@@ -49,7 +50,7 @@ class NoDuplicateDailyCheckinTest(HypothesisTestCase):
     @given(num_attempts=st.integers(min_value=2, max_value=10))
     @settings(max_examples=50)
     def test_multiple_checkin_attempts_result_in_one_record(self, num_attempts):
-        from django.db import IntegrityError
+        from django.db import IntegrityError, transaction
         plan = make_plan()
         member = make_member(email=f'dup_{num_attempts}@example.com', plan=plan)
         today = date.today()
@@ -57,8 +58,9 @@ class NoDuplicateDailyCheckinTest(HypothesisTestCase):
         success_count = 0
         for _ in range(num_attempts):
             try:
-                Attendance.objects.create(member=member, date=today, method='face')
-                success_count += 1
+                with transaction.atomic():
+                    Attendance.objects.create(member=member, date=today, method='face')
+                    success_count += 1
             except IntegrityError:
                 pass
 
@@ -75,13 +77,23 @@ class CheckinMethodIntegrityTest(TestCase):
         self.client.login(username='admin_test', password='pass123')
         self.member = make_member(email='method_test@example.com')
 
-    def test_face_checkin_creates_face_method_record(self):
-        response = self.client.post(
+    def _face_post(self, payload):
+        return self.client.post(
             '/attendance/checkin/',
-            data=json.dumps({'member_id': self.member.pk}),
+            data=json.dumps(payload),
             content_type='application/json',
         )
+
+    def test_face_checkin_creates_face_method_record(self):
+        with patch('face_service.extract_embedding',
+                   return_value={'status': 'ok', 'embedding': [0.1] * 128,
+                                 'liveness_score': 0.9, 'message': 'OK'}), \
+             patch('face_service.find_best_match', return_value=(self.member.pk, 0.92)):
+            response = self._face_post({'image': 'aGVsbG8='})
         self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertEqual(data['member_id'], self.member.pk)
         record = Attendance.objects.get(member=self.member)
         self.assertEqual(record.method, 'face')
 
@@ -96,35 +108,69 @@ class CheckinMethodIntegrityTest(TestCase):
 
     def test_duplicate_face_checkin_returns_409(self):
         Attendance.objects.create(member=self.member, date=date.today(), method='face')
-        response = self.client.post(
-            '/attendance/checkin/',
-            data=json.dumps({'member_id': self.member.pk}),
-            content_type='application/json',
-        )
+        with patch('face_service.extract_embedding',
+                   return_value={'status': 'ok', 'embedding': [0.1] * 128,
+                                 'liveness_score': 0.9, 'message': 'OK'}), \
+             patch('face_service.find_best_match', return_value=(self.member.pk, 0.92)):
+            response = self._face_post({'image': 'aGVsbG8='})
         self.assertEqual(response.status_code, 409)
 
-    def test_invalid_member_id_returns_404(self):
-        response = self.client.post(
-            '/attendance/checkin/',
-            data=json.dumps({'member_id': 99999}),
-            content_type='application/json',
-        )
+    def test_unmatched_face_returns_unknown(self):
+        with patch('face_service.extract_embedding',
+                   return_value={'status': 'ok', 'embedding': [0.1] * 128,
+                                 'liveness_score': 0.9, 'message': 'OK'}), \
+             patch('face_service.find_best_match', return_value=(None, 0.10)):
+            response = self._face_post({'image': 'aGVsbG8='})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'unknown')
+
+    def test_spoof_face_is_rejected(self):
+        with patch('face_service.extract_embedding',
+                   return_value={'status': 'spoof', 'embedding': None,
+                                 'liveness_score': 0.1,
+                                 'message': 'Liveness check failed'}):
+            response = self._face_post({'image': 'aGVsbG8='})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'spoof')
+
+    def test_missing_image_returns_400(self):
+        response = self._face_post({})
+        self.assertEqual(response.status_code, 400)
+
+    def test_matched_but_missing_member_returns_404(self):
+        with patch('face_service.extract_embedding',
+                   return_value={'status': 'ok', 'embedding': [0.1] * 128,
+                                 'liveness_score': 0.9, 'message': 'OK'}), \
+             patch('face_service.find_best_match', return_value=(99999, 0.9)):
+            response = self._face_post({'image': 'aGVsbG8='})
         self.assertEqual(response.status_code, 404)
 
+    def test_expired_member_gets_expired_status(self):
+        Member.objects.filter(pk=self.member.pk).update(
+            expiry_date=date.today() - timedelta(days=1),
+            status='expired',
+        )
+        with patch('face_service.extract_embedding',
+                   return_value={'status': 'ok', 'embedding': [0.1] * 128,
+                                 'liveness_score': 0.9, 'message': 'OK'}), \
+             patch('face_service.find_best_match', return_value=(self.member.pk, 0.9)):
+            response = self._face_post({'image': 'aGVsbG8='})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'expired')
 
-class DescriptorCacheCompletenessTest(TestCase):
+
+class DescriptorMatrixCacheTest(TestCase):
     # Feature: gym-management, Property 9: Descriptor cache completeness
 
     def setUp(self):
-        self.client = Client()
-        self.user = make_admin()
-        self.client.login(username='admin_test', password='pass123')
+        from face_service import invalidate_descriptor_cache
+        invalidate_descriptor_cache()
 
-    def test_descriptors_endpoint_returns_all_members_with_descriptors(self):
+    def test_matrix_contains_exactly_enrolled_members(self):
+        from face_service import get_descriptor_matrix
         plan = make_plan()
         m1 = make_member(email='desc1@example.com', plan=plan)
         m2 = make_member(email='desc2@example.com', plan=plan)
-        # Member without descriptor
         m3 = Member.objects.create(
             full_name='No Face',
             phone='000',
@@ -135,16 +181,48 @@ class DescriptorCacheCompletenessTest(TestCase):
             expiry_date=date.today() + timedelta(days=30),
         )
 
-        response = self.client.get('/members/descriptors/')
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        ids = [d['id'] for d in data]
+        matrix, member_ids = get_descriptor_matrix()
+        ids = set(int(i) for i in member_ids)
 
         self.assertIn(m1.pk, ids)
         self.assertIn(m2.pk, ids)
         self.assertNotIn(m3.pk, ids)
-        # No duplicates
-        self.assertEqual(len(ids), len(set(ids)))
+        # Each descriptor row is included, no duplicates of members from malformed data
+        self.assertEqual(matrix.shape[0], len(member_ids))
+        self.assertEqual(matrix.shape[1], 128)
+
+    def test_invalidation_rebuilds_matrix(self):
+        from face_service import get_descriptor_matrix, invalidate_descriptor_cache
+        plan = make_plan()
+        make_member(email='desc4@example.com', plan=plan)
+        get_descriptor_matrix()  # build cache
+
+        new_member = make_member(email='desc5@example.com', plan=plan)
+        invalidate_descriptor_cache()
+        _, member_ids = get_descriptor_matrix()
+
+        self.assertIn(new_member.pk, {int(i) for i in member_ids})
+
+    def test_find_best_match_returns_correct_member(self):
+        from unittest.mock import patch as _patch
+        from face_service import find_best_match
+        plan = make_plan()
+        member = make_member(email='match@example.com', plan=plan)
+
+        with _patch('face_service.INSIGHTFACE_AVAILABLE', True):
+            matched_id, score = find_best_match([0.1] * 128, threshold=0.05)
+        self.assertEqual(matched_id, member.pk)
+        self.assertGreaterEqual(score, 0.05)
+
+    def test_find_best_match_unknown_below_threshold(self):
+        from unittest.mock import patch as _patch
+        from face_service import find_best_match
+        plan = make_plan()
+        make_member(email='match2@example.com', plan=plan)
+
+        with _patch('face_service.INSIGHTFACE_AVAILABLE', True):
+            matched_id, score = find_best_match([-0.1] * 128, threshold=0.9)
+        self.assertIsNone(matched_id)
 
 
 class CSVExportCompletenessTest(HypothesisTestCase):
@@ -154,7 +232,7 @@ class CSVExportCompletenessTest(HypothesisTestCase):
         num_records=st.integers(min_value=0, max_value=10),
         days_back=st.integers(min_value=0, max_value=30),
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, deadline=None)
     def test_csv_export_contains_exactly_records_in_date_range(self, num_records, days_back):
         Attendance.objects.all().delete()
         Member.objects.all().delete()

@@ -34,19 +34,22 @@ def make_member(plan=None, email=None):
 
 
 class PaymentUpdatesExpiryTest(HypothesisTestCase):
-    # Feature: gym-management, Property 2: Payment updates expiry date
+    # Feature: gym-management, Property 2: Approved payment updates expiry date
 
     @given(
         days_ahead=st.integers(min_value=1, max_value=730),
     )
     @settings(max_examples=100)
-    def test_payment_updates_member_expiry_date(self, days_ahead):
+    def test_approved_payment_extends_member_expiry(self, days_ahead):
         plan = make_plan()
         member = make_member(plan=plan, email=f'pay_{days_ahead}@example.com')
         today = date.today()
         period_end = today + timedelta(days=days_ahead)
 
-        Payment.objects.create(
+        # Member is currently expired so the renewal clearly extends their expiry
+        Member.objects.filter(pk=member.pk).update(expiry_date=today - timedelta(days=1))
+
+        payment = Payment.objects.create(
             member=member,
             amount=Decimal('50.00'),
             date_paid=today,
@@ -54,9 +57,45 @@ class PaymentUpdatesExpiryTest(HypothesisTestCase):
             period_end=period_end,
             payment_method='cash',
         )
+        # A newly recorded payment is 'pending' and must NOT touch expiry yet
+        member.refresh_from_db()
+        self.assertEqual(member.expiry_date, today - timedelta(days=1))
+
+        payment.approval_status = 'approved'
+        payment.save(update_fields=['approval_status'])
+        payment.apply_to_membership()
 
         member.refresh_from_db()
         self.assertEqual(member.expiry_date, period_end)
+
+    @given(
+        extra_days=st.integers(min_value=1, max_value=3650),
+    )
+    @settings(max_examples=100)
+    def test_approval_never_shortens_an_already_longer_expiry(self, extra_days):
+        # Backdated/renewal payments whose period_end is earlier than the
+        # member's current expiry must not shrink it.
+        plan = make_plan()
+        member = make_member(plan=plan, email=f'short_{extra_days}@example.com')
+        today = date.today()
+        # Always later than the 30-day payment below, so the payment cannot extend it
+        current_expiry = today + timedelta(days=60 + extra_days)
+        Member.objects.filter(pk=member.pk).update(expiry_date=current_expiry)
+
+        payment = Payment.objects.create(
+            member=member,
+            amount=Decimal('50.00'),
+            date_paid=today,
+            period_start=today,
+            period_end=today + timedelta(days=30),
+            payment_method='cash',
+        )
+        payment.approval_status = 'approved'
+        payment.save(update_fields=['approval_status'])
+        payment.apply_to_membership()
+
+        member.refresh_from_db()
+        self.assertEqual(member.expiry_date, current_expiry)
 
 
 class MonthlyRevenueTest(HypothesisTestCase):

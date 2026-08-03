@@ -177,6 +177,7 @@ class PaymentApproveView(AdminRequiredMixin, View):
         payment.reviewed_by = request.user
         payment.reviewed_at = timezone.now()
         payment.save(update_fields=['approval_status', 'reviewed_by', 'reviewed_at'])
+        payment.apply_to_membership()
 
         messages.success(
             request,
@@ -230,6 +231,7 @@ class PaymentUnflagView(AdminRequiredMixin, View):
         payment.save(update_fields=[
             'approval_status', 'flag_reason', 'reviewed_by', 'reviewed_at'
         ])
+        payment.apply_to_membership()
 
         # Only clear flag if member has no other flagged payments
         other_flagged = Payment.objects.filter(
@@ -254,10 +256,15 @@ class PaymentApproveAllView(AdminRequiredMixin, View):
 
     def post(self, request):
         now = timezone.now()
-        count = Payment.objects.filter(approval_status='pending').update(
-            approval_status='approved',
-            reviewed_by=request.user,
-            reviewed_at=now,
+        payments = list(
+            Payment.objects.filter(approval_status='pending').select_related('member')
         )
+        for payment in payments:
+            payment.approval_status = 'approved'
+            payment.reviewed_by = request.user
+            payment.reviewed_at = now
+            payment.save(update_fields=['approval_status', 'reviewed_by', 'reviewed_at'])
+            payment.apply_to_membership()
+        count = len(payments)
         messages.success(request, f"{count} payment{'s' if count != 1 else ''} approved.")
         return redirect('payment_approval')
